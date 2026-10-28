@@ -10,6 +10,7 @@ import { MessageSettings } from "./MessageSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { PricingSettings } from "./PricingSettings";
 import { ProposalSettings } from "./ProposalSettings";
+import { RoutingSettings } from "./RoutingSettings";
 import { StaffSettings } from "./StaffSettings";
 
 const SECTIONS: { path: string; label: string; el: () => JSX.Element; perm?: Perm }[] = [
@@ -18,6 +19,7 @@ const SECTIONS: { path: string; label: string; el: () => JSX.Element; perm?: Per
   { path: "proposals", label: "Proposals & deposits", el: ProposalSettings },
   { path: "invoices", label: "Invoices & tax", el: InvoiceSettings },
   { path: "calendar", label: "Calendar & booking", el: CalendarSettings },
+  { path: "routing", label: "Routing", el: RoutingSettings },
   { path: "messages", label: "Message templates", el: MessageSettings },
   { path: "inventory", label: "Inventory", el: InventorySettings },
   { path: "staff", label: "Staff & roles", el: StaffSettings, perm: "staff" },

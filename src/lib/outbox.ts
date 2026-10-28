@@ -222,7 +222,10 @@ export function sendItem(i: OutboxItem, via: "sms" | "email" | "mark", body = i.
   else markSent(i.to, body, i.kind, i.lead?.id);
 }
 
-export const templateLabel = (kind: string) => OUTBOX_LABELS[kind as OutboxKind] ?? TEMPLATE_LABELS[kind as keyof typeof TEMPLATE_LABELS] ?? kind;
+/** Labels for logged messages that have no template (written by code, not the owner). */
+const OTHER_LABELS: Record<string, string> = { route: "Crew route", invite: "Staff invite" };
+
+export const templateLabel = (kind: string) => OUTBOX_LABELS[kind as OutboxKind] ?? TEMPLATE_LABELS[kind as keyof typeof TEMPLATE_LABELS] ?? OTHER_LABELS[kind] ?? kind;
 
 /* ---------- Hook ---------- */
 

@@ -12,6 +12,7 @@ const InvoicePage = lazy(() => import("./public/InvoicePage"));
 const SignPage = lazy(() => import("./public/SignPage"));
 const AppointmentPage = lazy(() => import("./public/AppointmentPage"));
 const ReviewsPage = lazy(() => import("./public/ReviewsPage"));
+const RoutePage = lazy(() => import("./public/RoutePage"));
 
 // The shared demo site (npm run build:pages) gives each browser the sample data once, the first time it opens the
 // dashboard or reviews page. The flag sits outside the axis.* keys, so "Reset all data" really does leave it empty.
@@ -39,6 +40,7 @@ seedDemo().finally(() =>
             <Route path="/s/:id" element={<SignPage />} />
             <Route path="/a/:id" element={<AppointmentPage />} />
             <Route path="/reviews" element={<ReviewsPage />} />
+            <Route path="/route/:id" element={<RoutePage />} />
             <Route path="*" element={<QuotePage />} />
           </Routes>
         </Suspense>

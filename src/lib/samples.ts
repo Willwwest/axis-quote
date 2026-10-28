@@ -3,7 +3,9 @@ import { seedTypes, typeLabel } from "./film";
 import { fill, template, type MergeContext } from "./messages";
 import { invoiceTotals } from "./money";
 import { buildQuote, vehicleLines } from "./pricing";
-import { addDays, today } from "./format";
+import { addDays, time12, today } from "./format";
+import { cityPoint } from "./routing/geo";
+import { fromMin, hash32, toMin } from "./routing/util";
 import { parseIso } from "./schedule";
 import { OWNER_ID } from "./session";
 import {
@@ -11,7 +13,7 @@ import {
   patchSettings, payments, proposalTemplates, proposals, remnants, reviews, rolls, signedDocs, staff,
 } from "./store";
 import type {
-  Appointment, Contact, FilmRoll, FilmUse, Invoice, JobKind, Lead, LeadStatus, MessageLog, Note, Notification, Payment, Proposal,
+  Appointment, Contact, FilmRoll, FilmUse, GeoPoint, Invoice, JobKind, Lead, LeadStatus, MessageLog, Note, Notification, Payment, Proposal,
   ProposalOption, QuoteLine, Review, Room, ServiceLine, VehicleSpec,
 } from "./types";
 import type { RegionId, TemplateKey } from "../data/config";
@@ -55,9 +57,24 @@ export function loadDemoData() {
     { id: VALLEY, name: "Sample Valley Installer", email: "valley@example.com", phone: "(480) 555-0112", role: "installer", pin: "4444", color: "rgb(var(--c-warn))", active: true },
   ]);
 
+  // Demo map spots: the town center plus a fixed offset of up to ~3 km per customer, so pins spread around town.
+  const spot = (id: string, city: string): GeoPoint | undefined => {
+    const center = cityPoint(city);
+    if (!center) return undefined;
+    const h = hash32(id);
+    const km = 3 * Math.sqrt((h & 0xffff) / 0xffff);
+    const angle = ((h >>> 16) / 0xffff) * 2 * Math.PI;
+    return {
+      lat: Math.round((center.lat + (km * Math.cos(angle)) / 111) * 1e5) / 1e5,
+      lng: Math.round((center.lng + (km * Math.sin(angle)) / (111 * Math.cos((center.lat * Math.PI) / 180))) * 1e5) / 1e5,
+      source: "sample", label: city,
+    };
+  };
+
   const prefs = { sms: true, email: true, reminders: true, followups: true };
   const C = (id: string, name: string, phone: string, city: string, tags: string[], created: number, extra: Partial<Contact> = {}): Contact => ({
-    id, name, phone, city, tags, prefs, email: `${name.split(" ")[1]?.toLowerCase() ?? "sample"}@example.com`, notes: "", createdAt: T(created, 9), ...extra,
+    id, name, phone, city, tags, prefs, email: `${name.split(" ")[1]?.toLowerCase() ?? "sample"}@example.com`, notes: "", createdAt: T(created, 9),
+    geo: spot(id, city), ...extra,
   });
   const c = {
     maria: C("CT-SMP01", "Maria Lopez (Sample)", "(928) 555-0101", "Prescott Valley", ["referral", "repeat"], -150, { address: "1420 Sample Way", source: "Referral" }),
@@ -87,7 +104,7 @@ export function loadDemoData() {
     return {
       ...base, id, status, createdAt: T(created, 8 + (Number(id.slice(-2)) % 9)), contactId: ct.id, source: ct.source,
       ...(kind === "vehicle" ? { vehicle: veh } : { home }),
-      quote: buildQuote(s, state), statusChangedAt: T(Math.min(0, created + 2), 15), ...rest,
+      quote: buildQuote(s, state), statusChangedAt: T(Math.min(0, created + 2), 15), geo: ct.geo, ...rest,
     };
   };
   const m = (type: Room["items"][number]["type"], direction: Room["items"][number]["direction"], qty: number, w: number, h: number) =>
@@ -431,6 +448,10 @@ export function loadDemoData() {
     { name: "Gavin Hart", city: "Cottonwood", region: "other", status: "paid", created: -33, source: "Google", by: OWNER_ID, v: { body: "truck", ymm: "2021 Toyota Tundra", paint: "#9da2a8" } },
     { name: "Lily Ford", city: "Flagstaff", region: "other", status: "booked", created: -9, at: 6, source: "Referral", by: OWNER_ID, v: { body: "suv", ymm: "2022 Subaru Outback", paint: "#1d2d52", frontVlt: 50, rearVlt: 35 } },
     { name: "Miles Dunn", city: "Camp Verde", region: "other", status: "lost", created: -50, source: "Google", by: "", v: { body: "sedan", ymm: "2019 Mazda 6", paint: "#b0160d" }, lost: "Went with a shop closer to home" },
+    // Approved, not on the calendar yet: Routes → Plan the week finds them a day.
+    { name: "Nina Alvarez", city: "Prescott Valley", region: "quad", status: "approved", created: -6, source: "Google", by: INSTALLER, v: { body: "suv", ymm: "2023 Toyota Highlander", paint: "#e6e7ea" } },
+    { name: "Victor Huang", city: "Scottsdale", region: "phx", status: "approved", created: -4, source: "Instagram", by: VALLEY, v: { body: "sedan", ymm: "2024 Tesla Model S", paint: "#141416", zones: ws } },
+    { name: "Rosa Delgado", city: "Sedona", region: "other", status: "approved", created: -7, source: "Referral", by: OWNER_ID, rooms: [room("Great room", [m("window", "S", 4, 60, 72)], uv25)] },
   ];
 
   // More stock for six months of work, plus where each film comes from.
@@ -611,6 +632,98 @@ export function loadDemoData() {
     note("review", "New 5★ review from Layla S. (Sample)", "/admin/reviews", T(-2, 19)),
   ]);
 
-  // Keep the human-facing sequences past the demo's numbers.
-  patchSettings((cur) => ({ sequences: { invoice: Math.max(cur.sequences.invoice, invNo), roll: Math.max(cur.sequences.roll, 10018), proposal: Math.max(cur.sequences.proposal, propNo) } }));
+  /* ---------- Route showcase ---------- */
+
+  // The next Quad Cities route day, booked the way a busy office might: everyone criss-crossing the area.
+  // Routes → Optimize shows what sorting it out saves.
+  const show = routeDay(1, "quad", 1);
+  const SHOW: { name: string; city: string; who: string; start: string; v?: Partial<VehicleSpec> }[] = [
+    { name: "Ruth Calder", city: "Chino Valley", who: OWNER_ID, start: "09:00", v: { body: "sedan", ymm: "2022 Toyota Camry", paint: "#e6e7ea" } },
+    { name: "Omar Haddad", city: "Dewey-Humboldt", who: OWNER_ID, start: "13:00", v: { body: "suv", ymm: "2021 Ford Explorer", paint: "#141416" } },
+    { name: "Tessa Lund", city: "Prescott", who: INSTALLER, start: "08:30", v: { body: "suv", ymm: "2023 Honda CR-V", paint: "#9da2a8" } },
+    { name: "Marcus Webb", city: "Chino Valley", who: INSTALLER, start: "12:30", v: { body: "truck", ymm: "2020 Ram 2500", paint: "#b0160d" } },
+    { name: "Jenna Ortiz", city: "Prescott Valley", who: TECH, start: "09:00", v: { body: "suv", ymm: "2024 Mazda CX-50", paint: "#1d2d52" } },
+    { name: "Cal Brennan", city: "Prescott", who: TECH, start: "12:30", v: { body: "sedan", ymm: "2019 Subaru WRX", paint: "#9da2a8" } },
+    { name: "Priya Shah", city: "Prescott Valley", who: TECH, start: "16:00" },
+  ];
+  const showPhones = [183, 184, 185, 186, 187, 188, 189];
+  const showContacts: Contact[] = [];
+  const showLeads: Lead[] = [];
+  const showAppts: Appointment[] = SHOW.map((x, i) => {
+    const k = String(i + 1).padStart(2, "0");
+    const consult = !x.v;
+    const ct = C(`CT-SMPR${k}`, `${x.name} (Sample)`, `(928) 555-0${showPhones[i]}`, x.city, [], -3 - i, {
+      source: i % 2 ? "Google" : "Quote app", ...(consult ? { address: `${410 + i * 23} Sample Ln` } : {}),
+    });
+    const l = job(`AX-SMPR${k}`, ct, consult ? "consult" : "booked", -3 - i, consult ? "home" : "vehicle", "quad", {
+      v: x.v, assigneeId: x.who, address: ct.address,
+      ...(consult ? {} : { appointment: { date: D(show), slot: time12(x.start) } }),
+    });
+    showContacts.push(ct);
+    showLeads.push(l);
+    return A(`AP-SMPR${k}`, l, consult ? "consult" : "install", show, x.start, consult ? 60 : 150, "scheduled",
+      { remindersSent: { confirm: T(-2 - (i % 2), 9) }, ...(consult ? { notes: "Measure the west windows and the patio slider." } : {}) });
+  });
+  contacts.saveMany(showContacts);
+  leads.saveMany(showLeads);
+  appointments.saveMany(showAppts);
+
+  // Keep the showcase day to the showcase: other upcoming visits on it move to their region's next route days,
+  // alternating between the next two so neither gets swamped.
+  const bumped = appointments.all()
+    .filter((a) => a.id.startsWith("AP-SMP") && !a.id.startsWith("AP-SMPR") && a.date === D(show) && a.status === "scheduled")
+    .sort((a, b) => a.id.localeCompare(b.id));
+  for (const [k, a] of bumped.entries()) {
+    const lead = leads.get(a.leadId);
+    const region = lead?.region ?? "quad";
+    const first = routeDay(show + 1, region, 1);
+    const next = D(k % 2 ? routeDay(first + 1, region, 1) : first);
+    appointments.update(a.id, { date: next });
+    if (lead?.appointment?.date === a.date) leads.update(lead.id, { appointment: { ...lead.appointment, date: next } });
+  }
+
+  // Demo dates move with today, so two visits can land on the same person at the same time. Later ones shift to the
+  // next free half hour; the showcase and anything already under way stay put.
+  const t0 = today();
+  const upcoming = appointments.all().filter((a) => a.id.startsWith("AP-SMP") && a.date >= t0 && a.assigneeId && (a.status === "scheduled" || a.status === "checked_in"));
+  const busy = new Map<string, [number, number][]>();
+  const slotOf = (a: Appointment) => `${a.assigneeId}|${a.date}`;
+  const hold = (a: Appointment, start: number) => {
+    const list = busy.get(slotOf(a)) ?? [];
+    list.push([start, start + a.durationMin]);
+    busy.set(slotOf(a), list);
+  };
+  const fixed = (a: Appointment) => a.id.startsWith("AP-SMPR") || a.status === "checked_in";
+  upcoming.filter(fixed).forEach((a) => hold(a, toMin(a.start)));
+  const movable = upcoming.filter((a) => !fixed(a)).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+  const moved: Appointment[] = [];
+  for (const a of movable) {
+    const list = busy.get(slotOf(a)) ?? [];
+    const clashes = (t: number) => list.some(([s0, e0]) => t < e0 + 30 && t + a.durationMin + 30 > s0);
+    let t = toMin(a.start);
+    while (clashes(t) && t + a.durationMin <= 18 * 60) t += 30;
+    if (t !== toMin(a.start) && !clashes(t)) {
+      moved.push({ ...a, start: fromMin(t) });
+      const lead = leads.get(a.leadId);
+      if (lead?.appointment?.date === a.date) leads.update(lead.id, { appointment: { date: a.date, slot: time12(fromMin(t)) } });
+    }
+    hold(a, clashes(t) ? toMin(a.start) : t);
+  }
+  appointments.saveMany(moved);
+
+  // Keep the human-facing sequences past the demo's numbers, and give the crew their home bases for routing.
+  const home = (city: string, label: string) => ({ address: `${city}, AZ`, geo: { ...cityPoint(city)!, source: "sample" as const, label } });
+  patchSettings((cur) => ({
+    sequences: { invoice: Math.max(cur.sequences.invoice, invNo), roll: Math.max(cur.sequences.roll, 10018), proposal: Math.max(cur.sequences.proposal, propNo) },
+    routing: {
+      ...cur.routing,
+      crew: {
+        ...cur.routing.crew,
+        [OWNER_ID]: { field: true, base: home("Prescott", "Shop · Prescott"), regions: ["quad", "other"] },
+        [INSTALLER]: { field: true, base: home("Prescott Valley", "Prescott Valley"), regions: ["quad", "other"] },
+        [TECH]: { field: true, base: home("Chino Valley", "Chino Valley"), regions: ["quad", "other"] },
+        [VALLEY]: { field: true, base: home("Tempe", "Tempe"), regions: ["phx"], days: [2, 4] },
+      },
+    },
+  }));
 }

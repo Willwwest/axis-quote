@@ -39,6 +39,7 @@ A plain `npm run build` has neither.
 | `/s/:id` | Document to sign (waivers, care sheets) with a finger signature |
 | `/a/:id` | Appointment: details, add to calendar, self-cancel |
 | `/reviews` | Public reviews page (`?embed=1` for the website widget) |
+| `/route/:id` | A crew member's route for the day (texted from Routes): stops in order, map, one-tap navigation, call/text, tick off stops |
 | `/warranty#…` | Warranty certificate |
 
 ## Crew dashboard (`/admin`)
@@ -51,6 +52,7 @@ Roles are Owner, Admin, Installer and Technician. The owner can preview any role
 | Dashboard | This week vs last week (leads, consults, installs, $ scheduled), tasks, today's schedule, outbox, money, low stock |
 | Jobs | 9-stage pipeline board and list. The job page is the hub: contact, vehicle/property, quote and services, appointments, measurements, film used, proposal, invoice, documents, notes, attachments, wrap-up and warranty |
 | Calendar | Agenda / day (team columns) / week. Recurring appointments, check-in/out, blocked days, route links |
+| Routes | Map of each person's day with road drive times, **Optimize day** across the whole crew (who takes which stop, in what order, inside customer windows), **Plan the week** (puts approved jobs on their region's route days with the person who adds the least driving), text each person their route link. Crew see "My route". See [docs/ROUTING.md](docs/ROUTING.md) |
 | Contacts | CRM with tags and conversion %, CSV import/export, merge duplicates, per-contact message opt-outs |
 | Proposals | Good/Better/Best options, add-ons, deposits, expiry, canned templates, follow-up flags |
 | Invoices | Invoices from approved proposals, tax rates, terms, deposits, payments and refunds, QuickBooks CSV export |
@@ -61,14 +63,15 @@ Roles are Owner, Admin, Installer and Technician. The owner can preview any role
 | Documents | Templates (dark-tint waiver, aftercare…) sent for signature and stored on the job |
 | Reviews | Log and feature reviews, request reviews, review sites, embed widget |
 | Analytics | 46 segments, date presets, compare to the previous period or last year |
-| Settings | Business, pricing, proposals, invoices and tax, calendar and booking, message templates, inventory, staff and roles, notifications, data |
+| Settings | Business, pricing, proposals, invoices and tax, calendar and booking, routing, message templates, inventory, staff and roles, notifications, data |
 | `/admin/design` | Living design-system reference (tokens, components, light/dark) |
 
 ## Code map
 
 - `src/styles/tokens.css` holds the brand primitives and semantic tokens. `src/components/ui.tsx` is the component library.
 - `src/lib/types.ts` is the domain model. `src/lib/store.ts` holds every collection and is the one place storage is touched.
-- `src/lib/`: film/cutopt (inventory and packing), money, outbox, messages, session (roles), notify, links, project, pricing.
+- `src/lib/`: film/cutopt (inventory and packing), routing (locations, drive times, optimizer, week planner), money, outbox, messages, session (roles), notify, links, project, pricing.
+- `src/admin/routes/` and `src/components/RouteMap.tsx` (Leaflet, loaded only by the route screens) are the route planner UI.
 - `src/admin/` has one folder per section. `src/components/project/` has the cards shown on the job page. `src/public/` has the customer link pages.
 
 ## Before launch

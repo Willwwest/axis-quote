@@ -117,6 +117,8 @@ export interface Lead extends Omit<QuoteState, "vehicle" | "home"> {
   source?: string;
   lostReason?: string;
   statusChangedAt?: string;
+  /** Where the work happens on the map (set by geocoding, or by hand). */
+  geo?: GeoPoint;
 }
 
 export interface Attachment {
@@ -143,6 +145,7 @@ export interface Contact {
   /** Per-contact opt-outs; all default on. */
   prefs: { sms: boolean; email: boolean; reminders: boolean; followups: boolean };
   taxExempt?: boolean;
+  geo?: GeoPoint;
   source?: string;
   createdAt: string;
 }
@@ -427,3 +430,18 @@ export interface Remnant {
   usedAt?: string;
   usedLeadId?: string;
 }
+
+/* ---------- Routing ---------- */
+
+export interface LatLng { lat: number; lng: number }
+
+/** A spot on the map and how sure we are of it. */
+export interface GeoPoint extends LatLng {
+  /** geocoded: street address matched · city: town center (approximate) · manual: set by hand · sample: demo data */
+  source: "geocoded" | "city" | "manual" | "sample";
+  label?: string;
+  at?: string;
+}
+
+/** Cached geocoder answer, keyed by normalized address. A null point means "looked it up, no match". */
+export interface GeocodeEntry { id: string; address: string; point: GeoPoint | null; at: string }

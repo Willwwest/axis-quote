@@ -16,6 +16,7 @@ const JobPage = lazy(() => import("./jobs/JobPage"));
 const ContactsPage = lazy(() => import("./contacts/ContactsPage"));
 const ContactPage = lazy(() => import("./contacts/ContactPage"));
 const CalendarPage = lazy(() => import("./calendar/CalendarPage"));
+const RoutesPage = lazy(() => import("./routes/RoutesPage"));
 const ProposalsPage = lazy(() => import("./proposals/ProposalsPage"));
 const InvoicesPage = lazy(() => import("./invoices/InvoicesPage"));
 const InvoiceEditor = lazy(() => import("./invoices/InvoiceEditor"));
@@ -50,6 +51,7 @@ export default function AdminApp() {
         <Route path="contacts" element={<Gate perm="contacts"><ContactsPage /></Gate>} />
         <Route path="contacts/:id" element={<Gate perm="contacts"><ContactPage /></Gate>} />
         <Route path="calendar" element={<Gate perm="calendar"><CalendarPage /></Gate>} />
+        <Route path="routes" element={<Gate perm="calendar"><RoutesPage /></Gate>} />
         <Route path="proposals" element={<Gate perm="proposals"><ProposalsPage /></Gate>} />
         <Route path="invoices" element={<Gate perm="invoices"><InvoicesPage /></Gate>} />
         <Route path="invoices/:id" element={<Gate perm="invoices"><InvoiceEditor /></Gate>} />

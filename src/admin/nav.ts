@@ -1,6 +1,6 @@
 import {
   BarChart3, Briefcase, CalendarDays, FileSignature, FileText, Layers, LayoutDashboard, ListTodo, MessageSquare, Receipt,
-  Settings, Star, Users, type LucideIcon,
+  Route, Settings, Star, Users, type LucideIcon,
 } from "lucide-react";
 import type { Perm } from "../lib/session";
 
@@ -17,6 +17,7 @@ export const NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, perm: "dashboard", primary: true },
   { to: "/admin/jobs", label: "Jobs", icon: Briefcase, perm: "jobs", primary: true },
   { to: "/admin/calendar", label: "Calendar", icon: CalendarDays, perm: "calendar", primary: true },
+  { to: "/admin/routes", label: "Routes", icon: Route, perm: "calendar" },
   { to: "/admin/contacts", label: "Contacts", icon: Users, perm: "contacts" },
   { to: "/admin/proposals", label: "Proposals", icon: FileText, perm: "proposals" },
   { to: "/admin/invoices", label: "Invoices", icon: Receipt, perm: "invoices" },

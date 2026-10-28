@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SETTINGS, type Settings } from "../data/config";
 import type {
-  Appointment, Contact, DocTemplate, FilmRoll, FilmType, FilmUse, Invoice, Lead, LeadStatus, MessageLog, Note,
+  Appointment, Contact, DocTemplate, FilmRoll, FilmType, FilmUse, GeocodeEntry, Invoice, Lead, LeadStatus, MessageLog, Note,
   Notification, Payment, Proposal, ProposalTemplate, Remnant, Review, SignedDoc, Staff,
 } from "./types";
 
@@ -138,6 +138,7 @@ export const filmTypes = collection<FilmType>("axis.filmTypes.v1");
 export const rolls = collection<FilmRoll>("axis.rolls.v1", (r) => (r.status ? r : { ...r, status: "in" }));
 export const filmLog = collection<FilmUse>("axis.filmlog.v1");
 export const remnants = collection<Remnant>("axis.remnants.v1");
+export const geocodes = collection<GeocodeEntry>("axis.geocodes.v1");
 
 /* ---------- Settings ---------- */
 

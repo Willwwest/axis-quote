@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { CalendarDays, ChevronLeft, ChevronRight, Lock, MapPin, Navigation, Plus, SlidersHorizontal, Unlock } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Lock, MapPin, Navigation, Plus, Route as RouteIcon, SlidersHorizontal, Unlock } from "lucide-react";
 import { Avatar, Badge, Button, Card, Chip, EmptyState, IconButton, Input, PageHeader, Segmented, Toggle, cx } from "../../components/ui";
 import { REGIONS } from "../../data/config";
 import { addDays, addMinutes, dayDate, shortDate, time12, today } from "../../lib/format";
@@ -89,7 +89,10 @@ export default function CalendarPage() {
       <PageHeader
         title="Calendar"
         sub={`${inRange.filter((a) => a.status !== "cancelled").length} appointments · ${label}${mineOnly ? " · just yours" : ""}`}
-        actions={<Button onClick={() => openNew()}><Plus size={16} /> New appointment</Button>}
+        actions={<>
+          <Link to={`/admin/routes?d=${date}`}><Button variant="outline" tabIndex={-1}><RouteIcon size={16} /> Routes</Button></Link>
+          <Button onClick={() => openNew()}><Plus size={16} /> New appointment</Button>
+        </>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

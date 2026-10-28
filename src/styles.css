@@ -32,3 +32,30 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* White-on-dark logo art: flip it for the light theme, then swing the red back. */
 :root[data-theme="light"] .axis-logo { filter: invert(1) hue-rotate(180deg); }
+
+/* ---------- Route map (Leaflet), on the design tokens ---------- */
+.route-map .leaflet-container { background: rgb(var(--c-sunken)); font-family: var(--font-body); }
+/* Dark theme: darken the OpenStreetMap tiles so the map sits in the brand palette. */
+:root:not([data-theme="light"]) .route-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.85) saturate(.6); }
+.route-map .leaflet-bar { border: 1px solid rgb(var(--c-fg) / .12); box-shadow: none; }
+.route-map .leaflet-bar a { background: rgb(var(--c-surface)); color: rgb(var(--c-fg) / .8); border-bottom-color: rgb(var(--c-fg) / .1); }
+.route-map .leaflet-bar a:hover { background: rgb(var(--c-raised)); color: rgb(var(--c-fg)); }
+.route-map .leaflet-control-attribution { background: rgb(var(--c-bg) / .75); color: rgb(var(--c-fg) / .55); }
+.route-map .leaflet-control-attribution a { color: rgb(var(--c-fg) / .75); }
+.route-map .leaflet-tooltip { background: rgb(var(--c-surface)); color: rgb(var(--c-fg)); border: 1px solid rgb(var(--c-fg) / .12); box-shadow: none; border-radius: .5rem; }
+.route-map .leaflet-tooltip-top::before { border-top-color: rgb(var(--c-surface)); }
+.route-map .route-tip-note { color: rgb(var(--c-warn)); font-size: 11px; }
+.route-pin-wrap { background: none; border: 0; }
+.route-pin {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9999px;
+  background: var(--pin); color: rgb(var(--c-on-accent)); border: 2px solid rgb(var(--c-bg));
+  font: 700 13px/1 var(--font-display); box-shadow: 0 2px 8px rgb(var(--c-scrim) / .45); transition: transform .15s;
+}
+.route-pin--approx { outline: 2px dashed var(--pin); outline-offset: 2px; }
+.route-pin--done { opacity: .45; }
+.route-pin--loose { background: rgb(var(--c-surface)); color: rgb(var(--c-fg)); border-color: rgb(var(--c-fg) / .45); }
+.route-pin--selected { transform: scale(1.25); box-shadow: 0 0 0 4px rgb(var(--c-fg) / .35), 0 2px 10px rgb(var(--c-scrim) / .5); }
+.route-base {
+  display: block; width: 18px; height: 18px; border-radius: 5px; transform: rotate(45deg);
+  background: rgb(var(--c-bg)); border: 3px solid var(--pin);
+}

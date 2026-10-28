@@ -42,6 +42,7 @@ Detailed notes and about 550 screenshots are in `docs/reference/tintwiz/`. That 
 | | Card terminals | No | Skip |
 | **Scheduling** | Calendar with team columns and filters; appointment fields, colors, recurring, check-in/out, cancel | Yes; route-days-by-region kept from Axis | Have |
 | | Map panel | "Open in Maps" per stop, plus a day route link | Have |
+| | Route planning *(Tint Wiz shows a map; it doesn't optimize)* | Routes: road drive times (OSRM), optimize the day across the whole crew, plan the week onto region route days, text each person a route link with turn-by-turn legs. Free and open source, no keys | **Ahead** |
 | | Confirmation / 24h / 1h / cancel texts with editable templates | Templates plus outbox; one tap opens the phone's Messages app | Device-only |
 | | Public appointment page with self-cancel | Yes | Device-only |
 | **After the job** | Review requests, review sites, profile page, featured reviews, widget | Yes | Have |

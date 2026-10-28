@@ -1,4 +1,4 @@
-import type { Notification, PaymentTerms, Role } from "../lib/types";
+import type { GeoPoint, Notification, PaymentTerms, Role } from "../lib/types";
 // Business facts pulled from axisglasstinting.com. Prices are placeholders the owner edits in /admin.
 
 export const BUSINESS = {
@@ -214,6 +214,45 @@ export interface Settings {
   reviews: { sites: { name: string; url: string }[]; autoRequest: "installed" | "paid" | "off" };
   /** Which roles get in-app notifications for each event. */
   notify: Record<Notification["kind"], Role[]>;
+  routing: RoutingSettings;
+}
+
+/** One person on the road: where their day starts, when and where they work. Missing fields use the routing defaults. */
+export interface CrewProfile {
+  /** Does field work (gets routed). Defaults: owner, installers and technicians yes; admins no. */
+  field?: boolean;
+  base?: { address: string; geo?: GeoPoint };
+  /** Weekdays (0 = Sun) they work. Default Mon–Fri. */
+  days?: number[];
+  start?: string;
+  end?: string;
+  /** Regions they cover. Empty or missing = all. */
+  regions?: RegionId[];
+}
+
+export interface RoutingSettings {
+  /** Shop or home base: where routes start and end unless a person has their own. */
+  base: { address: string; geo?: GeoPoint };
+  /** Keyed by staff id, or "owner". */
+  crew: Record<string, CrewProfile>;
+  dayStart: string;
+  dayEnd: string;
+  /** Minutes added at each stop for parking, setup and walkthrough. */
+  bufferMin: number;
+  returnToBase: boolean;
+  /** Address lookup. Both are OpenStreetMap services; addresses are sent to them. */
+  geocoder: "nominatim" | "photon" | "off";
+  /** Road travel times: OSRM (open source), OpenRouteService (free key), or a straight-line estimate. */
+  travel: "osrm" | "ors" | "estimate";
+  osrmUrl: string;
+  orsKey: string;
+  /** Built-in solver, or the open-source VROOM solver through OpenRouteService (needs orsKey). */
+  optimizer: "builtin" | "vroom";
+  /** Straight-line estimate: road miles per crow-flies mile, and average speed. */
+  detourFactor: number;
+  avgMph: number;
+  /** Most installs one person takes in a day when planning the week. */
+  maxJobsPerDay: number;
 }
 
 export interface TaxRate { id: string; name: string; pct: number }
@@ -318,6 +357,22 @@ export const DEFAULT_SETTINGS: Settings = {
     stock: ["owner", "admin", "installer"],
     appointment: ["owner", "admin", "installer", "technician"],
     review: ["owner", "admin"],
+  },
+  routing: {
+    base: { address: "Prescott, AZ", geo: { lat: 34.5815, lng: -112.4528, source: "city", label: "Prescott" } },
+    crew: {},
+    dayStart: "08:00",
+    dayEnd: "17:00",
+    bufferMin: 15,
+    returnToBase: true,
+    geocoder: "nominatim",
+    travel: "osrm",
+    osrmUrl: "https://router.project-osrm.org",
+    orsKey: "",
+    optimizer: "builtin",
+    detourFactor: 1.3,
+    avgMph: 45,
+    maxJobsPerDay: 3,
   },
 };
 

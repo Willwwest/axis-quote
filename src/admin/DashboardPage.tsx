@@ -130,7 +130,12 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader title="Today's schedule" icon={<CalendarDays size={16} />} sub={`${todays.filter((a) => a.status !== "cancelled").length} appointment${todays.length === 1 ? "" : "s"}`}
-              actions={session.can("calendar") && <Link to="/admin/calendar" className="text-sm text-fg/50 hover:text-fg">Calendar →</Link>} />
+              actions={session.can("calendar") && (
+                <span className="flex gap-3">
+                  <Link to="/admin/routes" className="text-sm text-fg/50 hover:text-fg">Routes →</Link>
+                  <Link to="/admin/calendar" className="text-sm text-fg/50 hover:text-fg">Calendar →</Link>
+                </span>
+              )} />
             {!todays.length ? <p className="py-4 text-sm text-fg/45">Nothing booked today.</p> : (
               <ul className="-mx-2 divide-y divide-fg/5">
                 {todays.map((a) => (
