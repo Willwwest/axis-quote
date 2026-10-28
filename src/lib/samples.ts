@@ -1,6 +1,7 @@
 import { INITIAL } from "../pages/quote/context";
-import { seedTypes } from "./film";
+import { seedTypes, typeLabel } from "./film";
 import { fill, template, type MergeContext } from "./messages";
+import { invoiceTotals } from "./money";
 import { buildQuote, vehicleLines } from "./pricing";
 import { addDays, today } from "./format";
 import { parseIso } from "./schedule";
@@ -11,7 +12,7 @@ import {
 } from "./store";
 import type {
   Appointment, Contact, FilmRoll, FilmUse, Invoice, JobKind, Lead, LeadStatus, MessageLog, Note, Notification, Payment, Proposal,
-  ProposalOption, QuoteLine, Room, ServiceLine, VehicleSpec,
+  ProposalOption, QuoteLine, Review, Room, ServiceLine, VehicleSpec,
 } from "./types";
 import type { RegionId, TemplateKey } from "../data/config";
 
@@ -31,16 +32,27 @@ const sid = (p: string) => `${p}-SMP${String(++seq).padStart(3, "0")}`;
 
 const INSTALLER = "ST-SMPINS";
 const TECH = "ST-SMPTEC";
+const VALLEY = "ST-SMPVLY";
 
 export function loadDemoData() {
   seq = 0;
   const s = getSettings();
+
+  // Nearest day on or past `n` (stepping by `step`) that the region is scheduled.
+  const routeDay = (n: number, region: RegionId, step: 1 | -1) => {
+    const days = s.regionDays[region];
+    let k = n;
+    while (days.length && !days.includes(parseIso(D(k)).getDay())) k += step;
+    return k;
+  };
+  const mariaDay = routeDay(3, "quad", 1);
 
   /* ---------- People ---------- */
 
   staff.saveMany([
     { id: INSTALLER, name: "Sample Installer", email: "installer@example.com", phone: "(928) 555-0110", role: "installer", pin: "2222", color: "rgb(var(--c-info))", active: true },
     { id: TECH, name: "Sample Technician", email: "tech@example.com", phone: "(928) 555-0111", role: "technician", pin: "3333", color: "rgb(var(--c-success))", active: true },
+    { id: VALLEY, name: "Sample Valley Installer", email: "valley@example.com", phone: "(480) 555-0112", role: "installer", pin: "4444", color: "rgb(var(--c-warn))", active: true },
   ]);
 
   const prefs = { sms: true, email: true, reminders: true, followups: true };
@@ -110,7 +122,7 @@ export function loadDemoData() {
       ],
     }),
     grace: job("AX-SMP07", c.grace, "approved", -13, "vehicle", "phx", { v: { body: "coupe", ymm: "2019 Ford Mustang GT", paint: "#b0160d", frontVlt: 50, rearVlt: 20 } }),
-    maria: job("AX-SMP08", c.maria, "booked", -11, "vehicle", "quad", { assigneeId: INSTALLER, appointment: { date: D(3), slot: "9:00 AM" }, v: { body: "minivan", ymm: "2022 Honda Odyssey", paint: "#9da2a8", vin: "5FNRL6H7XNSMP0002", zones: ["frontSides", "rearSides", "rearWindshield", "visor", "sunroof"] } }),
+    maria: job("AX-SMP08", c.maria, "booked", -11, "vehicle", "quad", { assigneeId: INSTALLER, appointment: { date: D(mariaDay), slot: "9:00 AM" }, v: { body: "minivan", ymm: "2022 Honda Odyssey", paint: "#9da2a8", vin: "5FNRL6H7XNSMP0002", zones: ["frontSides", "rearSides", "rearWindshield", "visor", "sunroof"] } }),
     fleet: job("AX-SMP09", c.fleet, "booked", -10, "vehicle", "quad", {
       assigneeId: TECH, title: "Fleet: 4 work trucks", tags: ["fleet"], price: 1400,
       services: [{ id: sid("SV"), name: "Fleet truck tint (fronts + rears)", price: 350, qty: 4 }],
@@ -150,7 +162,7 @@ export function loadDemoData() {
   rolls.saveMany(rl);
   const use = (roll: number, n: number, inches: number, label: string, leadId?: string, source: FilmUse["source"] = "vehicle"): FilmUse =>
     ({ id: sid("FU"), rollId: `RL-SMP0${roll}`, date: T(n, 14), inches, source, label, leadId, byId: INSTALLER });
-  filmLog.saveMany([
+  const baseUse = [
     use(6, -146, 150, "2017 Honda Civic Si · all sides", J.mariaFirst.id),
     use(2, -95, 90, "2021 Ford F-150 · fronts", J.fleetFirst.id),
     use(3, -58, 150, "2020 Toyota Tacoma · rears + back glass", J.brianTruck.id),
@@ -167,7 +179,8 @@ export function loadDemoData() {
     use(2, -1, 80, "2023 Tesla Model 3 · fronts", J.ana.id),
     use(4, -1, 72, "2023 Tesla Model 3 · windshield", J.ana.id),
     use(2, -1, 247, "Counted the roll: about 14 ft left", undefined, "adjust"),
-  ]);
+  ];
+  filmLog.saveMany(baseUse);
   remnants.saveMany([
     { id: "RN-SMP01", rollId: "RL-SMP01", filmTypeId: "FT-axis-ceramic-20", name: "Ceramic 20% offcut", widthIn: 40, lengthIn: 30, location: "Van bin A", createdAt: T(-6, 15) },
     { id: "RN-SMP02", rollId: "RL-SMP05", filmTypeId: "FT-edge-ultra-view-25", name: "Ultra View 25 offcut", widthIn: 60, lengthIn: 22, location: "Shop shelf 2", createdAt: T(-20, 15) },
@@ -230,12 +243,12 @@ export function loadDemoData() {
   const fleetAppt = (n: number, week: number, status: Appointment["status"], extra: Partial<Appointment> = {}) =>
     A(`AP-SMPF${n}`, J.fleet, "install", week * 7, "08:00", 240, status, { title: `Fleet truck #${n} · Sample Plumbing`, recurrence: series, ...extra });
   appointments.saveMany([
-    A("AP-SMP01", J.linda, "consult", 2, "10:00", 60, "scheduled", { notes: "Measure living room + bedroom. Bring Ultra View samples.", remindersSent: { confirm: T(-4, 12) } }),
-    A("AP-SMP02", J.office, "consult", 1, "13:00", 60, "scheduled", { notes: "Rebooked after last week's no-show." }),
+    A("AP-SMP01", J.linda, "consult", routeDay(2, "quad", 1), "10:00", 60, "scheduled", { notes: "Measure living room + bedroom. Bring Ultra View samples.", remindersSent: { confirm: T(-4, 12) } }),
+    A("AP-SMP02", J.office, "consult", routeDay(1, "quad", 1), "13:00", 60, "scheduled", { notes: "Rebooked after last week's no-show." }),
     A("AP-SMP03", J.office, "consult", -5, "13:00", 60, "no_show"),
     A("AP-SMP04", J.brian, "consult", -10, "09:00", 60, "done"),
     A("AP-SMP05", J.lost, "consult", -15, "11:00", 60, "cancelled", { history: [{ at: T(-16, 10), text: "Cancelled: customer went elsewhere", by: OWNER_ID }] }),
-    A("AP-SMP06", J.maria, "install", 3, "09:00", 180, "scheduled", { remindersSent: { confirm: T(-9, 9) } }),
+    A("AP-SMP06", J.maria, "install", mariaDay, "09:00", 180, "scheduled", { remindersSent: { confirm: T(-9, 9) } }),
     fleetAppt(1, -1, "done"),
     fleetAppt(2, 0, "checked_in", { checkInAt: T(0, 8, 4) }),
     fleetAppt(3, 1, "scheduled"),
@@ -295,7 +308,7 @@ export function loadDemoData() {
     N("NT-SMP01", "Tom asked how much cooler ceramic is than carbon. Call him Thursday with the heat numbers.", INSTALLER, -5,
       { leadId: J.tom.id, contactId: c.tom.id, task: { assigneeId: OWNER_ID, status: "open", due: D(2) }, replies: [reply("Will do, I'll bring the heat lamp demo too.", OWNER_ID, -4, [INSTALLER])] }),
     N("NT-SMP02", "Bring the 60\" roll: the Odyssey has a huge back glass.", OWNER_ID, -2,
-      { leadId: J.maria.id, contactId: c.maria.id, task: { assigneeId: INSTALLER, status: "open", due: D(3) }, replies: [reply("Got it, loading it Thursday night.", INSTALLER, -1, [])] }),
+      { leadId: J.maria.id, contactId: c.maria.id, task: { assigneeId: INSTALLER, status: "open", due: D(mariaDay) }, replies: [reply("Got it, loading it the night before.", INSTALLER, -1, [])] }),
     N("NT-SMP03", "Reorder Ceramic 35%: roll 10002 is under 15 ft.", TECH, -1, { rollId: "RL-SMP02", task: { assigneeId: null, status: "open", due: D(1) } }),
     N("NT-SMP04", "Call Grace to set her install date. She prefers mornings.", OWNER_ID, -3, { leadId: J.grace.id, contactId: c.grace.id, task: { assigneeId: null, status: "open", due: D(0) } }),
     N("NT-SMP05", "Send the 4Runner invoice.", OWNER_ID, -6, { leadId: J.lindaCar.id, contactId: c.linda.id, task: { assigneeId: OWNER_ID, status: "done", due: D(-5), doneAt: T(-5, 17) } }),
@@ -343,7 +356,7 @@ export function loadDemoData() {
     msg(J.mariaBmw, "review", -26, 18, { link: reviewLink }),
     msg(J.grace, "proposalSend", -10, 9, { code: "2003" }),
     msg(J.maria, "proposalSend", -10, 9, { code: "2004" }),
-    msg(J.maria, "confirm", -9, 9, { appointment: { date: D(3), start: "09:00" } }),
+    msg(J.maria, "confirm", -9, 9, { appointment: { date: D(mariaDay), start: "09:00" } }),
     msg(J.fleet, "confirm", -8, 9, { appointment: { date: D(-7), start: "08:00" } }),
     msg(J.brian, "proposalSend", -7, 9, { code: "2002" }),
     msg(J.tom, "proposalSend", -6, 9, { code: "2001" }),
@@ -361,6 +374,243 @@ export function loadDemoData() {
     note("payment", `Deposit from ${c.grace.name}`, `/admin/jobs/${J.grace.id}`, T(-3, 11, 5)),
   ]);
 
+  /* ---------- Across the service area ---------- */
+
+  // Six months of work in every area Axis serves: the Quad Cities, the Valley and Northern Arizona.
+  // Installs land on each region's route days; film comes off the rolls in date order.
+  const FROST = "FT-SMP-frost";
+  const uv25 = "FT-edge-ultra-view-25", uv15 = "FT-edge-ultra-view-15", pr50 = "FT-edge-pristine-50", pr70 = "FT-edge-pristine-70";
+  const frost = { id: FROST, brand: "Axis", series: "Decorative", name: "Frost (sample)", vlt: null, category: "flat" as const, pricePerSqft: 14, description: "Privacy frost for bathrooms, offices and glass walls." };
+  filmTypes.saveMany([frost]);
+  const catalog = new Map([...seedTypes(), frost].map((t) => [t.id, t]));
+  const ws = [...INITIAL.vehicle.zones, "windshield"] as VehicleSpec["zones"];
+  const roof = [...INITIAL.vehicle.zones, "sunroof"] as VehicleSpec["zones"];
+
+  type AreaJob = {
+    name: string; city: string; region: RegionId; status: LeadStatus; created: number; source: string; by: string;
+    v?: Partial<VehicleSpec>; rooms?: Room[]; company?: string; at?: number; review?: string; lost?: string; partial?: boolean;
+  };
+  const AREA: AreaJob[] = [
+    // Prescott & the Quad Cities
+    { name: "Ethan Brooks", city: "Prescott", region: "quad", status: "paid", created: -172, source: "Google", by: INSTALLER, v: { body: "sedan", ymm: "2019 Toyota Camry", paint: "#9da2a8" }, review: "Came right to our garage. The Camry is so much cooler on the drive down to the Valley." },
+    { name: "Olivia Grant", city: "Prescott Valley", region: "quad", status: "paid", created: -160, source: "Google", by: OWNER_ID, rooms: [room("Living room", [m("window", "W", 3, 60, 48)], uv25), room("Patio slider", [m("door", "W", 1, 72, 80)], uv25)], review: "Our west-facing slider used to bake the living room every afternoon. Not anymore." },
+    { name: "Noah Fischer", city: "Chino Valley", region: "quad", status: "paid", created: -141, source: "Facebook", by: TECH, v: { body: "truck", ymm: "2022 Ram 1500", paint: "#141416", film: "carbon", rearVlt: 5 } },
+    { name: "Ava Martinez", city: "Prescott", region: "quad", status: "paid", created: -128, source: "Referral", by: INSTALLER, v: { body: "suv", ymm: "2021 Toyota RAV4", paint: "#e6e7ea", zones: ws }, review: "The clear windshield film is the best upgrade I've made to this car." },
+    { name: "Liam O'Neil", city: "Dewey-Humboldt", region: "quad", status: "paid", created: -117, source: "Google", by: TECH, v: { body: "truck", ymm: "2019 Chevrolet Silverado 1500", paint: "#b0160d", film: "carbon" } },
+    { name: "Kelly Shaw", company: "Family Dental (Sample)", city: "Prescott", region: "quad", status: "paid", created: -104, source: "Website", by: OWNER_ID, rooms: [room("Reception storefront", [m("window", "S", 4, 48, 84)], pr50), room("Exam rooms", [m("window", "W", 3, 36, 48)], pr50)], review: "Patients stopped squinting in the waiting room, and the install was done before we opened." },
+    { name: "Sophia Turner", city: "Prescott Valley", region: "quad", status: "paid", created: -92, source: "Instagram", by: INSTALLER, v: { body: "suv", ymm: "2022 Tesla Model Y", paint: "#e6e7ea", zones: roof }, review: "The glass roof finally doesn't cook us." },
+    { name: "Mason Reed", city: "Chino Valley", region: "quad", status: "paid", created: -75, source: "Referral", by: OWNER_ID, rooms: [room("Great room", [m("window", "W", 4, 48, 72)], uv15), room("Kitchen nook", [m("window", "SW", 2, 36, 48)], uv15)], review: "Privacy during the day and we can still see the mountains." },
+    { name: "Isabella Cruz", city: "Prescott", region: "quad", status: "paid", created: -61, source: "Google", by: INSTALLER, v: { body: "coupe", ymm: "2020 Chevrolet Camaro", paint: "#141416", film: "carbon", rearVlt: 5 } },
+    { name: "Lucas Bennett", city: "Prescott Valley", region: "quad", status: "paid", created: -46, source: "Referral", by: INSTALLER, v: { body: "minivan", ymm: "2021 Toyota Sienna", paint: "#9da2a8", frontVlt: 50 }, review: "Kids are comfortable in the back now. Super easy to book." },
+    { name: "Harper Wells", city: "Prescott", region: "quad", status: "invoiced", created: -38, source: "Website", by: OWNER_ID, rooms: [room("Home office", [m("window", "W", 2, 60, 60)], uv25), room("Primary bath", [m("window", "E", 1, 36, 48)], FROST)] },
+    { name: "Henry Cole", city: "Dewey-Humboldt", region: "quad", status: "invoiced", created: -9, source: "Google", by: TECH, v: { body: "suv", ymm: "2023 Ford Bronco", paint: "#1d2d52", film: "carbon" } },
+    { name: "Evelyn Ward", city: "Prescott", region: "quad", status: "installed", created: -6, source: "Quote app", by: INSTALLER, v: { body: "sedan", ymm: "2024 Honda Civic", paint: "#b0160d" } },
+    { name: "Jack Rivera", city: "Chino Valley", region: "quad", status: "booked", created: -7, at: 2, source: "Quote app", by: TECH, v: { body: "truck", ymm: "2024 Toyota Tacoma", paint: "#9da2a8", zones: ws } },
+    { name: "Mia Foster", city: "Prescott Valley", region: "quad", status: "booked", created: -12, at: 5, source: "Google", by: INSTALLER, rooms: [room("West bedrooms", [m("window", "W", 3, 48, 60)], uv25), room("Patio slider", [m("door", "W", 1, 72, 80)], uv25)] },
+    { name: "Paul Diaz", company: "Realty Group (Sample)", city: "Prescott", region: "quad", status: "booked", created: -15, at: 8, source: "Phone call", by: OWNER_ID, rooms: [room("Storefront", [m("window", "S", 6, 60, 96)], pr50), room("Conference glass wall", [m("wall", undefined, 2, 48, 96)], FROST)] },
+    { name: "Amelia Hayes", city: "Prescott", region: "quad", status: "approved", created: -5, source: "Instagram", by: INSTALLER, v: { body: "suv", ymm: "2023 Subaru Ascent", paint: "#b59c76" } },
+    { name: "Daniel Price", city: "Prescott Valley", region: "quad", status: "proposal", created: -4, source: "Google", by: OWNER_ID, v: { body: "sedan", ymm: "2022 Kia K5", paint: "#141416" } },
+    { name: "Chloe Sanders", city: "Chino Valley", region: "quad", status: "consult", created: -3, at: 2, source: "Website", by: OWNER_ID },
+    { name: "Owen Hughes", city: "Prescott", region: "quad", status: "new", created: 0, source: "Quote app", by: "", v: { body: "truck", ymm: "2025 Ford F-150", paint: "#e6e7ea" } },
+    { name: "Zoe Kelly", city: "Dewey-Humboldt", region: "quad", status: "new", created: -1, source: "Quote app", by: "", v: { body: "sedan", ymm: "2018 Toyota Corolla", paint: "#9da2a8", removal: true } },
+    { name: "Logan Perry", city: "Prescott Valley", region: "quad", status: "lost", created: -30, source: "Google", by: "", v: { body: "suv", ymm: "2017 Jeep Wrangler", film: "carbon" }, lost: "Waiting until spring" },
+    // Phoenix & the Valley
+    { name: "Elijah Ross", city: "Phoenix", region: "phx", status: "paid", created: -150, source: "Google", by: VALLEY, v: { body: "sedan", ymm: "2021 Lexus ES 350", paint: "#141416", zones: ws }, review: "Phoenix summers are brutal. The ceramic windshield made a real difference." },
+    { name: "Scarlett Myers", city: "Scottsdale", region: "phx", status: "paid", created: -110, source: "Instagram", by: VALLEY, v: { body: "suv", ymm: "2022 Porsche Macan", paint: "#e6e7ea", zones: ws }, review: "Flawless install in my garage. No bubbles, no dust." },
+    { name: "Benjamin Long", city: "Tempe", region: "phx", status: "paid", created: -84, source: "Referral", by: VALLEY, v: { body: "sedan", ymm: "2020 Tesla Model 3", paint: "#9da2a8", zones: roof } },
+    { name: "Nora Ellis", company: "Office Park (Sample)", city: "Mesa", region: "phx", status: "paid", created: -68, source: "Website", by: VALLEY, rooms: [room("Lobby", [m("window", "S", 4, 60, 96)], pr50), room("West offices", [m("window", "W", 6, 48, 60)], uv25)], review: "Tenants on the west side stopped complaining about the afternoon heat." },
+    { name: "Aiden Butler", city: "Mesa", region: "phx", status: "paid", created: -40, source: "Facebook", by: VALLEY, v: { body: "truck", ymm: "2023 GMC Sierra 1500", paint: "#141416", film: "carbon", rearVlt: 5 } },
+    { name: "Layla Simmons", city: "Chandler", region: "phx", status: "paid", created: -24, source: "Referral", by: VALLEY, rooms: [room("Family room", [m("window", "W", 3, 72, 60)], uv15), room("Sliding door", [m("door", "W", 1, 72, 80)], uv15), room("Arizona room", [m("window", "S", 4, 48, 60)], uv15)], review: "The Arizona room is usable in the afternoon again." },
+    { name: "Carter Jenkins", city: "Scottsdale", region: "phx", status: "invoiced", created: -16, source: "Instagram", by: VALLEY, v: { body: "coupe", ymm: "2024 BMW M4", paint: "#1d2d52", frontVlt: 50, rearVlt: 35, zones: ws }, partial: true },
+    { name: "Riley Coleman", city: "Phoenix", region: "phx", status: "booked", created: -6, at: 4, source: "Quote app", by: VALLEY, v: { body: "suv", ymm: "2024 Kia Telluride", paint: "#e6e7ea" } },
+    { name: "Ruby Patterson", city: "Tempe", region: "phx", status: "proposal", created: -5, source: "Google", by: VALLEY, v: { body: "sedan", ymm: "2023 Hyundai Sonata", paint: "#e6e7ea" } },
+    { name: "Wyatt Barnes", city: "Gilbert", region: "phx", status: "new", created: -2, source: "Quote app", by: "", v: { body: "suv", ymm: "2025 Toyota Grand Highlander", paint: "#9da2a8" } },
+    { name: "Hazel Russell", city: "Phoenix", region: "phx", status: "consult", created: -4, at: 1, source: "Google", by: VALLEY },
+    // Northern Arizona
+    { name: "Iris Bell", company: "Art Gallery (Sample)", city: "Sedona", region: "other", status: "paid", created: -55, source: "Website", by: OWNER_ID, rooms: [room("Gallery front windows", [m("window", "S", 5, 72, 96)], pr70)], review: "UV film that protects the paintings without darkening the gallery. Exactly what we needed." },
+    { name: "Gavin Hart", city: "Cottonwood", region: "other", status: "paid", created: -33, source: "Google", by: OWNER_ID, v: { body: "truck", ymm: "2021 Toyota Tundra", paint: "#9da2a8" } },
+    { name: "Lily Ford", city: "Flagstaff", region: "other", status: "booked", created: -9, at: 6, source: "Referral", by: OWNER_ID, v: { body: "suv", ymm: "2022 Subaru Outback", paint: "#1d2d52", frontVlt: 50, rearVlt: 35 } },
+    { name: "Miles Dunn", city: "Camp Verde", region: "other", status: "lost", created: -50, source: "Google", by: "", v: { body: "sedan", ymm: "2019 Mazda 6", paint: "#b0160d" }, lost: "Went with a shop closer to home" },
+  ];
+
+  // More stock for six months of work, plus where each film comes from.
+  const areaRolls = [
+    R(7, "Ceramic 20%", 20, 40, 100, "FT-axis-ceramic-20", 520, -190),
+    R(8, "Ceramic 35%", 35, 40, 100, "FT-axis-ceramic-35", 520, -190),
+    R(9, "Ceramic 20%", 20, 40, 100, "FT-axis-ceramic-20", 520, -70),
+    R(10, "Carbon 35%", 35, 30, 100, "FT-axis-carbon-35", 260, -160),
+    R(11, "Carbon 20%", 20, 30, 100, "FT-axis-carbon-20", 260, -160),
+    R(12, "Ceramic 50%", 50, 40, 100, "FT-axis-ceramic-50", 520, -120),
+    R(13, "Pristine 50", 50, 60, 100, pr50, 950, -110),
+    R(14, "Ultra View 15", 14, 60, 100, uv15, 900, -160),
+    R(15, "Pristine 70", 70, 60, 100, pr70, 950, -60),
+    R(16, "Frost", null, 60, 50, FROST, 420, -45),
+    R(17, "Ultra View 25", 27, 60, 100, uv25, 900, -170),
+  ];
+  rolls.saveMany(areaRolls);
+  const POOL: Record<string, number[]> = {
+    "ceramic-20": [7, 9], "ceramic-35": [8], "ceramic-50": [12], "ceramic-70": [4], "carbon-35": [10], "carbon-20": [11], "carbon-5": [3],
+    [uv25]: [17], [uv15]: [14], [pr50]: [13], [pr70]: [15], [FROST]: [16],
+  };
+  const allRolls = new Map([...rl, ...areaRolls].map((r) => [r.id, r]));
+  const left = new Map([...allRolls.values()].map((r) => [r.id, r.lengthFt * 12 - baseUse.filter((u) => u.rollId === r.id).reduce((a, u) => a + u.inches, 0)]));
+  const take = (key: string, inches: number, n: number, label: string, l: Lead, source: FilmUse["source"]): FilmUse | null => {
+    const pool = (POOL[key] ?? []).map((k) => `RL-SMP0${k}`);
+    const rollId = pool.find((id) => left.get(id)! >= inches && allRolls.get(id)!.addedAt <= T(n, 14)) ?? pool[pool.length - 1];
+    if (!rollId) return null;
+    left.set(rollId, left.get(rollId)! - inches);
+    return { id: sid("FU"), rollId, date: T(n, 14), inches, source, label, leadId: l.id, byId: l.assigneeId ?? OWNER_ID };
+  };
+  const FRONT: Record<VehicleSpec["body"], number> = { coupe: 90, sedan: 80, suv: 85, truck: 85, minivan: 85 };
+  const REAR: Record<VehicleSpec["body"], number> = { coupe: 70, sedan: 150, suv: 190, truck: 130, minivan: 210 };
+  const sqftOf = (r: Room) => Math.round(r.items.reduce((a, it) => a + (it.w * it.h * it.qty) / 144, 0));
+
+  const out = { contacts: [] as Contact[], leads: [] as Lead[], appts: [] as Appointment[], props: [] as Proposal[], invoices: [] as Invoice[],
+    pays: [] as Payment[], use: [] as FilmUse[], reviews: [] as Review[], msgs: [] as MessageLog[] };
+  const byName = new Map<string, Lead>();
+  const taken = new Set([101, 110, 111, 112, 123, 124, 136, 144, 149, 155, 168, 177, 182, 190]);
+  let phone = 112, invNo = 1009, propNo = 2005;
+  const METHODS: Payment["method"][] = ["card", "zelle", "card", "check", "cash", "venmo"];
+
+  // Oldest first, so film comes off each roll in the order the jobs happened.
+  AREA.map((b, i) => ({ b, i })).sort((x, y) => x.b.created - y.b.created).forEach(({ b, i }) => {
+    const k = String(i + 1).padStart(2, "0");
+    do phone++; while (taken.has(phone));
+    const kind: JobKind = b.v ? "vehicle" : b.company ? "business" : "home";
+    const [first, last] = b.name.split(" ");
+    const area = b.region === "phx" ? (i % 2 ? "602" : "480") : "928";
+    const ct = C(`CT-SMPA${k}`, `${b.name} (Sample)`, `(${area}) 555-0${phone}`, b.city,
+      [b.company && "commercial", b.source === "Referral" && "referral"].filter(Boolean) as string[], b.created - 1, {
+        email: `${first}.${last}`.toLowerCase().replace(/[^a-z.]/g, "") + "@example.com", source: b.source, company: b.company,
+        ...(kind !== "vehicle" ? { address: `${200 + i * 17} Sample ${["Ln", "Dr", "Way", "Ct", "Rd"][i % 5]}` } : {}),
+      });
+    const services: ServiceLine[] | undefined = b.rooms?.map((r) => {
+      const t = catalog.get(r.filmTypeId!)!;
+      return { id: sid("SV"), name: `${r.name} · ${typeLabel(t)} · ${sqftOf(r)} sq ft`, price: Math.round(sqftOf(r) * t.pricePerSqft), qty: 1 };
+    });
+    const l = job(`AX-SMPA${k}`, ct, b.status, b.created, kind, b.region, {
+      v: b.v, rooms: b.rooms, address: ct.address, assigneeId: b.by || undefined, lostReason: b.lost,
+      ...(b.company ? { title: `${b.company.replace(" (Sample)", "")} · ${b.rooms!.map((r) => r.name.toLowerCase()).join(" + ")}` } : {}),
+      ...(services ? { services, price: Math.max(s.homeMinimum, services.reduce((a, x) => a + x.price, 0)) } : {}),
+    });
+    if (b.created === 0) l.createdAt = new Date(Date.now() - (2 + (i % 3)) * 3600_000).toISOString();
+    byName.set(b.name, l);
+    out.contacts.push(ct);
+
+    const finished = ["installed", "invoiced", "paid"].includes(b.status);
+    const flat = kind !== "vehicle";
+    const day = finished ? routeDay(Math.min(b.created + 8, -1), b.region, -1) : b.at !== undefined ? routeDay(b.at, b.region, 1) : undefined;
+    const start = i % 2 ? "13:00" : "09:00";
+    const sq = b.rooms?.reduce((a, r) => a + sqftOf(r), 0) ?? 0;
+    const minutes = flat ? Math.min(480, Math.max(120, Math.round(sq / 60) * 60)) : l.vehicle!.zones.includes("windshield") ? 180 : 150;
+
+    // Measure first on flat glass; the consult itself is the next step for jobs still at that stage.
+    if (flat || b.status === "consult") {
+      const cDay = b.status === "consult" ? routeDay(b.at!, b.region, 1) : routeDay(b.created + 1, b.region, 1);
+      out.appts.push(A(`AP-SMPA${k}C`, l, "consult", cDay, "10:00", 60, b.status === "consult" ? "scheduled" : "done"));
+    }
+    if (day !== undefined && (finished || b.status === "booked")) {
+      out.appts.push(A(`AP-SMPA${k}I`, l, "install", day, start, minutes, finished ? "done" : "scheduled",
+        finished ? {} : { remindersSent: { confirm: T(b.created + 1, 9) } }));
+      if (b.status === "booked") {
+        l.appointment = { date: D(day), slot: start === "09:00" ? "9:00 AM" : "1:00 PM" };
+        out.msgs.push(msg(l, "confirm", b.created + 1, 9, { appointment: { date: D(day), start } }));
+      }
+    }
+
+    // Proposals: flat glass is always quoted from measurements; vehicles only when the customer asked to compare.
+    const sent = Math.min(0, b.created + (flat ? 3 : 1));
+    let deposit = 0;
+    if ((flat && b.status !== "consult") || ["proposal", "approved"].includes(b.status)) {
+      const options = flat
+        ? [opt(`OP-SMPA${k}`, "As measured", "Film and labor for every room we measured.", services!.map((x) => ({ label: x.name, amount: x.price })),
+          { recommended: true, filmTypeId: b.rooms![0].filmTypeId, roomIds: b.rooms!.map((r) => r.id) })]
+        : carOptions(l, `OP-SMPA${k}`);
+      const code = String(propNo++);
+      const approved = b.status !== "proposal";
+      const approvedDay = Math.min(0, sent + 2);
+      out.props.push(P(`PR-SMPA${k}`, code, l, options, approved ? "approved" : i % 2 ? "viewed" : "sent", sent, {
+        ...(approved || i % 2 ? { viewedAt: T(sent, 19) } : {}),
+        ...(approved ? { approvedAt: T(approvedDay, 11), approvedName: ct.name, chosenOptionIds: [options[0].id] } : {}),
+      }));
+      out.msgs.push(msg(l, "proposalSend", sent, 9, { code }));
+      if (approved) {
+        l.price = Math.max(l.price ?? 0, total(options[0]));
+        deposit = Math.round(l.price * (s.proposals.depositPct / 100));
+        out.pays.push(pay(`PY-SMPA${k}D`, l, "deposit", deposit, "card", approvedDay, { notes: `Deposit on proposal ${code}` }));
+      }
+    }
+
+    if (!finished || day === undefined) return out.leads.push(l);
+    l.completion = done(day, !!b.review);
+
+    // Film off the rolls.
+    const used: FilmUse[] = [];
+    const add = (u: FilmUse | null) => u && used.push(u);
+    const who = (b.company ?? b.name).replace(" (Sample)", "");
+    if (flat) b.rooms!.forEach((r) => add(take(r.filmTypeId!, Math.ceil((sqftOf(r) * 144 / 60) * 1.1), day, `${who} · ${r.name}`, l, "measure")));
+    else {
+      const v = l.vehicle!;
+      add(take(`${v.film}-${v.frontVlt}`, FRONT[v.body], day, `${v.ymm} · fronts`, l, "vehicle"));
+      add(take(`${v.film}-${v.rearVlt}`, REAR[v.body], day, `${v.ymm} · rears + back glass`, l, "vehicle"));
+      if (v.zones.includes("windshield")) add(take("ceramic-70", 72, day, `${v.ymm} · windshield`, l, "vehicle"));
+      if (v.zones.includes("sunroof")) add(take(`${v.film}-${v.rearVlt}`, 40, day, `${v.ymm} · sunroof`, l, "vehicle"));
+    }
+    out.use.push(...used);
+    if (b.status === "installed") return out.leads.push(l);
+
+    // Invoice and payment.
+    const codes = [...new Set(used.map((u) => allRolls.get(u.rollId)!.code!))];
+    const terms: Invoice["terms"] = b.company ? "net15" : b.status === "invoiced" ? (flat ? "net15" : "net7") : "receipt";
+    const due = day + ({ receipt: 0, net7: 7, net15: 15, net21: 21, net30: 30 } as const)[terms];
+    const number = String(invNo++);
+    const inv = I(`IN-SMPA${k}`, number, l, day, terms, due, b.status === "paid" ? "paid" : b.partial ? "partial" : "sent", codes);
+    out.invoices.push(inv);
+    const owed = invoiceTotals(inv).total - deposit;
+    if (b.status === "paid") {
+      const paidDay = Math.min(0, terms === "receipt" ? day : day + 10);
+      const method = b.company ? "check" : METHODS[i % METHODS.length];
+      out.pays.push(pay(`PY-SMPA${k}`, l, "payment", owed, method, paidDay, { invoiceId: inv.id, ...(method === "card" && !flat ? { tip: 20 + (i % 3) * 10 } : {}) }));
+      out.msgs.push(msg(l, "paymentThanks", paidDay, 16, { amount: owed }));
+      l.statusChangedAt = T(paidDay, 16);
+      if (b.review) {
+        out.msgs.push(msg(l, "review", day + 1, 18, { link: reviewLink }));
+        out.reviews.push({ id: `RV-SMPA${k}`, name: b.company ?? `${first} ${last[0]}. (Sample)`, rating: i % 7 === 3 ? 4 : 5, text: b.review,
+          source: ["Google", "Google", "Facebook"][i % 3], date: D(Math.min(0, day + 2)), leadId: l.id, published: true, featured: i % 3 === 0 });
+      }
+    } else {
+      if (inv.status === "partial") out.pays.push(pay(`PY-SMPA${k}`, l, "payment", Math.round(owed / 2), "card", Math.min(0, day + 1), { invoiceId: inv.id, notes: "Half now, half next month" }));
+      out.msgs.push(msg(l, "invoiceSend", day, 17, { amount: invoiceTotals(inv).total }));
+    }
+    out.leads.push(l);
+  });
+
+  contacts.saveMany(out.contacts);
+  leads.saveMany(out.leads);
+  appointments.saveMany(out.appts);
+  proposals.saveMany(out.props);
+  invoices.saveMany(out.invoices);
+  payments.saveMany(out.pays);
+  filmLog.saveMany(out.use);
+  reviews.saveMany(out.reviews);
+  messages.saveMany(out.msgs);
+
+  const lily = byName.get("Lily Ford")!, realty = byName.get("Paul Diaz")!, harper = byName.get("Harper Wells")!;
+  notes.saveMany([
+    N("NT-SMPA1", "Flagstaff run: try to pair Lily's Outback with another northern job the same day. Travel fee is already on her quote.", OWNER_ID, -8,
+      { leadId: lily.id, contactId: lily.contactId, task: { assigneeId: OWNER_ID, status: "open", due: D(3) } }),
+    N("NT-SMPA2", "Storefront glass is 8 ft tall. Bring the tall ladder and the 60\" Pristine roll.", OWNER_ID, -10,
+      { leadId: realty.id, contactId: realty.contactId, task: { assigneeId: INSTALLER, status: "open", due: D(4) } }),
+    N("NT-SMPA3", "Harper's invoice is past due. Call before sending another text.", OWNER_ID, -2,
+      { leadId: harper.id, contactId: harper.contactId, task: { assigneeId: OWNER_ID, status: "open", due: D(0) } }),
+  ]);
+  const owen = byName.get("Owen Hughes")!, wyatt = byName.get("Wyatt Barnes")!;
+  notifications.saveMany([
+    note("lead", `New lead: ${owen.contact.name} · 2025 Ford F-150 · Prescott`, `/admin/jobs/${owen.id}`, owen.createdAt),
+    note("lead", `New lead: ${wyatt.contact.name} · 2025 Toyota Grand Highlander · Gilbert`, `/admin/jobs/${wyatt.id}`, wyatt.createdAt),
+    note("review", "New 5★ review from Layla S. (Sample)", "/admin/reviews", T(-2, 19)),
+  ]);
+
   // Keep the human-facing sequences past the demo's numbers.
-  patchSettings((cur) => ({ sequences: { invoice: Math.max(cur.sequences.invoice, 1009), roll: Math.max(cur.sequences.roll, 10007), proposal: Math.max(cur.sequences.proposal, 2005) } }));
+  patchSettings((cur) => ({ sequences: { invoice: Math.max(cur.sequences.invoice, invNo), roll: Math.max(cur.sequences.roll, 10018), proposal: Math.max(cur.sequences.proposal, propNo) } }));
 }

@@ -18,6 +18,16 @@ node scripts/tokenize.cjs --check   # fails if any UI color is off the design to
 
 To try everything with realistic data: open `/admin`, enter PIN `1234`, then go to **Settings → Data & integrations → Load demo data**.
 
+### Shared demo (GitHub Pages)
+
+Every push to `main` deploys https://willwwest.github.io/axis-quote/ via `.github/workflows/pages.yml` (`npm run build:pages`).
+That build uses `--mode demo` (`.env.demo`), which:
+
+- loads the sample data the first time a browser opens `/admin` or `/reviews`. That is about 55 jobs across the Quad Cities, the Valley and Northern Arizona, with rolls, invoices, reviews and route-day appointments.
+- lists the demo PINs on the sign-in screen: owner `1234`, installer `2222`, technician `3333`, Valley installer `4444`.
+
+A plain `npm run build` has neither.
+
 ## Customer side
 
 | Route | What |

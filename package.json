@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --base=/axis-quote/ && cp dist/index.html dist/404.html",
+    "build:pages": "tsc -b && vite build --mode demo --base=/axis-quote/ && cp dist/index.html dist/404.html",
     "preview": "vite preview"
   },
   "dependencies": {

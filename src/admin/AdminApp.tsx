@@ -104,7 +104,11 @@ function PinGate() {
         <Input autoFocus type="password" inputMode="numeric" value={v} onChange={(e) => { setV(e.target.value); setBad(false); }} placeholder="Your PIN" aria-label="PIN" className={cx("mt-4 text-center text-2xl tracking-[.5em]", bad && "border-accent")} />
         {bad && <p className="mt-2 text-sm text-accent-fg">That PIN doesn't match anyone</p>}
         <Button className="mt-4 w-full" type="submit">Unlock</Button>
-        <p className="mt-6 text-xs text-fg/35">Owner PIN is set in Settings → Business. Staff get their own PIN under Settings → Staff.</p>
+        {import.meta.env.VITE_DEMO ? (
+          <p className="mt-6 text-xs text-fg/50">Demo PINs: owner <b className="text-fg/80">1234</b> · installer <b className="text-fg/80">2222</b> · technician <b className="text-fg/80">3333</b> · Valley installer <b className="text-fg/80">4444</b></p>
+        ) : (
+          <p className="mt-6 text-xs text-fg/35">Owner PIN is set in Settings → Business. Staff get their own PIN under Settings → Staff.</p>
+        )}
       </form>
     </div>
   );
