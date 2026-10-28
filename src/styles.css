@@ -1,27 +1,24 @@
+@import "./styles/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  --axis-red: #da281b;
-  --axis-black: #0b0b0c;
-}
-
 html,
 body {
-  background: var(--axis-black);
-  font-family: "DM Sans", system-ui, sans-serif;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-fg));
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
 }
 
 ::selection {
-  background: rgba(218, 40, 27, 0.5);
+  background: rgb(var(--c-accent) / 0.5);
 }
 
-/* Hide number spinners in the pricing editor */
+/* Hide number spinners on numeric inputs */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -30,4 +27,8 @@ input[type="number"]::-webkit-outer-spin-button {
 @media print {
   @page { margin: 12mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print { display: none !important; }
 }
+
+/* White-on-dark logo art: flip it for the light theme, then swing the red back. */
+:root[data-theme="light"] .axis-logo { filter: invert(1) hue-rotate(180deg); }

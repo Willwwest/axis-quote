@@ -44,21 +44,21 @@ export function PropertyStep() {
       </div>
 
       <h2 className="mb-1 mt-10 font-display text-xl font-semibold">Roughly how many windows?</h2>
-      <p className="mb-4 text-sm text-white/55">Ballpark is fine. We measure exactly at the free consultation.</p>
-      <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/[.02]">
+      <p className="mb-4 text-sm text-fg/55">Ballpark is fine. We measure exactly at the free consultation.</p>
+      <div className="divide-y divide-fg/5 rounded-2xl border border-fg/10 bg-fg/[.02]">
         {PANES.map((p) => (
           <div key={p.id} className="flex items-center gap-4 px-5 py-4">
             <PaneIcon size={p.id} />
             <div className="flex-1">
               <div className="font-medium">{p.label}</div>
-              <div className="text-xs text-white/50">{p.hint} · ~{p.sqft} sq ft</div>
+              <div className="text-xs text-fg/50">{p.hint} · ~{p.sqft} sq ft</div>
             </div>
             <Counter value={h.panes[p.id]} onChange={(n) => update({ panes: { ...h.panes, [p.id]: n } })} />
           </div>
         ))}
       </div>
-      <p className="mt-3 text-sm text-white/50">
-        {homePaneCount(h)} windows · about <span className="text-white">{homeSqft(h)} sq ft</span> of glass
+      <p className="mt-3 text-sm text-fg/50">
+        {homePaneCount(h)} windows · about <span className="text-fg">{homeSqft(h)} sq ft</span> of glass
       </p>
     </div>
   );
@@ -67,9 +67,9 @@ export function PropertyStep() {
 function PaneIcon({ size }: { size: (typeof PANES)[number]["id"] }) {
   const dims = { small: [18, 22], standard: [24, 28], large: [36, 26], door: [34, 34] }[size];
   return (
-    <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/[.04]">
-      <div className="relative rounded-[3px] border-2 border-white/50 bg-sky-300/20" style={{ width: dims[0], height: dims[1] }}>
-        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/50" />
+    <div className="grid h-12 w-12 place-items-center rounded-xl bg-fg/[.04]">
+      <div className="relative rounded-[3px] border-2 border-fg/50 bg-info/20" style={{ width: dims[0], height: dims[1] }}>
+        <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-fg/50" />
       </div>
     </div>
   );
@@ -87,16 +87,16 @@ export function HomeFilmStep() {
     <div>
       <StepHeader eyebrow="Step 2 · Film" title="Same view. Half the heat." sub="Edge films from our lineup. Flip between the street and your living room." />
 
-      <div className="relative overflow-hidden rounded-3xl border border-white/10">
+      <div className="relative overflow-hidden rounded-3xl border border-fg/10">
         <div className="absolute left-4 top-4 z-10">
           <Segmented size="sm" value={view} onChange={setView} options={[
             { value: "outside", label: <span className="flex items-center gap-1.5"><Home size={13} /> From the street</span> },
             { value: "inside", label: <span className="flex items-center gap-1.5"><Eye size={13} /> From inside</span> },
           ]} />
         </div>
-        <div className="absolute right-4 top-4 z-10 rounded-xl bg-black/50 px-3 py-2 text-right backdrop-blur">
+        <div className="absolute right-4 top-4 z-10 rounded-xl bg-scrim/50 px-3 py-2 text-right backdrop-blur">
           <div className="font-display text-xl font-bold">{shade.name}</div>
-          <div className="text-[11px] uppercase tracking-widest text-white/60">{shade.vlt}% light in</div>
+          <div className="text-[11px] uppercase tracking-widest text-fg/60">{shade.vlt}% light in</div>
         </div>
         <HomeVisualizer vlt={shade.vlt} reflect={reflect} view={view} className="w-full" />
       </div>
@@ -107,13 +107,13 @@ export function HomeFilmStep() {
           return (
             <Choice key={id} selected={h.film === id} onClick={() => update({ film: id, shade: id === rec.film ? rec.shade : f.shades[Math.floor(f.shades.length / 2)].name })} className="!p-5">
               {rec.film === id && (
-                <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-axis-red px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+                <span className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
                   <Sparkles size={11} /> For you
                 </span>
               )}
-              <div className="text-xs uppercase tracking-widest text-white/45">{f.kind}</div>
+              <div className="text-xs uppercase tracking-widest text-fg/45">{f.kind}</div>
               <div className="font-display text-xl font-semibold">{f.name}</div>
-              <p className="mt-1 text-sm text-white/60">{f.tagline}</p>
+              <p className="mt-1 text-sm text-fg/60">{f.tagline}</p>
             </Choice>
           );
         })}
@@ -125,13 +125,13 @@ export function HomeFilmStep() {
             key={s.name}
             type="button"
             onClick={() => update({ shade: s.name })}
-            className={cx("rounded-xl border px-4 py-2.5 text-left transition", h.shade === s.name ? "border-axis-red bg-axis-red/10" : "border-white/10 hover:border-white/30")}
+            className={cx("rounded-xl border px-4 py-2.5 text-left transition", h.shade === s.name ? "border-accent bg-accent/10" : "border-fg/10 hover:border-fg/30")}
           >
             <div className="flex items-center gap-1.5 font-display font-semibold">
-              {h.shade === s.name && <Check size={14} className="text-axis-bright" />}{s.name}
-              {rec.shade === s.name && <Sparkles size={12} className="text-axis-bright" />}
+              {h.shade === s.name && <Check size={14} className="text-accent-fg" />}{s.name}
+              {rec.shade === s.name && <Sparkles size={12} className="text-accent-fg" />}
             </div>
-            <div className="text-xs text-white/50">{s.vlt}% visible light</div>
+            <div className="text-xs text-fg/50">{s.vlt}% visible light</div>
           </button>
         ))}
       </div>
@@ -150,9 +150,9 @@ export function HomeFilmStep() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[.02] p-4">
-      <div className="font-display text-2xl font-bold text-white">{value}</div>
-      <div className="mt-1 text-xs leading-snug text-white/50">{label}</div>
+    <div className="rounded-2xl border border-fg/10 bg-fg/[.02] p-4">
+      <div className="font-display text-2xl font-bold text-fg">{value}</div>
+      <div className="mt-1 text-xs leading-snug text-fg/50">{label}</div>
     </div>
   );
 }

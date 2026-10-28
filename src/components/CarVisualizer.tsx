@@ -183,9 +183,9 @@ export function CarVisualizer({ body, paint, zones, frontVlt, rearVlt, focus, st
           <stop offset="1" stopColor="#000" stopOpacity="0" />
         </radialGradient>
         <radialGradient id={`beam${uid}`} cx="0.5" cy="0" r="1">
-          <stop offset="0" stopColor="#ff2a2a" stopOpacity="0.32" />
-          <stop offset="0.6" stopColor="#da281b" stopOpacity="0.05" />
-          <stop offset="1" stopColor="#da281b" stopOpacity="0" />
+          <stop offset="0" stopColor="rgb(var(--c-accent-bright))" stopOpacity="0.32" />
+          <stop offset="0.6" stopColor="rgb(var(--c-accent))" stopOpacity="0.05" />
+          <stop offset="1" stopColor="rgb(var(--c-accent))" stopOpacity="0" />
         </radialGradient>
         <linearGradient id={`floor${uid}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#1b1b1f" />
@@ -206,7 +206,7 @@ export function CarVisualizer({ body, paint, zones, frontVlt, rearVlt, focus, st
         <g>
           <path d="M 450 -60 L 120 320 L 780 320 Z" fill={`url(#beam${uid})`} filter={`url(#soft${uid})`} />
           <rect x="0" y="292" width="900" height="48" fill={`url(#floor${uid})`} />
-          <ellipse cx="450" cy="300" rx="380" ry="10" fill="#da281b" opacity="0.08" filter={`url(#glow${uid})`} />
+          <ellipse cx="450" cy="300" rx="380" ry="10" fill="rgb(var(--c-accent))" opacity="0.08" filter={`url(#glow${uid})`} />
         </g>
       )}
       <ellipse cx="452" cy="298" rx="400" ry="16" fill={`url(#shadow${uid})`} />
@@ -222,8 +222,8 @@ export function CarVisualizer({ body, paint, zones, frontVlt, rearVlt, focus, st
       {/* Lights */}
       <path d={g.headlight} fill="#f2f6ff" />
       <path d={g.headlight} fill="#cfe2ff" opacity="0.7" filter={`url(#glow${uid})`} />
-      <path d={g.taillight} fill="#ff2a2a" />
-      <path d={g.taillight} fill="#ff2a2a" opacity="0.6" filter={`url(#glow${uid})`} />
+      <path d={g.taillight} fill="rgb(var(--c-accent-bright))" />
+      <path d={g.taillight} fill="rgb(var(--c-accent-bright))" opacity="0.6" filter={`url(#glow${uid})`} />
 
       {/* Cabin seen through the glass */}
       <g clipPath={`url(#glass${uid})`}>
@@ -246,7 +246,7 @@ export function CarVisualizer({ body, paint, zones, frontVlt, rearVlt, focus, st
               fillOpacity={tintOpacity(vlt)}
             />
             <path d={gl.d} fill={`url(#sheen${uid})`} />
-            {on && <path d={gl.d} fill="#da281b" fillOpacity="0.35" stroke="#ff2a2a" strokeWidth="2" />}
+            {on && <path d={gl.d} fill="rgb(var(--c-accent))" fillOpacity="0.35" stroke="rgb(var(--c-accent-bright))" strokeWidth="2" />}
           </g>
         );
       })}
@@ -284,7 +284,7 @@ function Wheel({ cx, uid }: { cx: number; uid: string }) {
       <circle cx={cx} cy={cy} r="46" fill="#0d0d0e" />
       <circle cx={cx} cy={cy} r="40" fill="none" stroke="#1d1d20" strokeWidth="3" />
       <circle cx={cx} cy={cy} r="30" fill={`url(#rim${uid})`} />
-      <path d={`M ${cx - 20} ${cy - 18} A 27 27 0 0 1 ${cx + 6} ${cy - 26}`} stroke="#da281b" strokeWidth="7" fill="none" />
+      <path d={`M ${cx - 20} ${cy - 18} A 27 27 0 0 1 ${cx + 6} ${cy - 26}`} stroke="rgb(var(--c-accent))" strokeWidth="7" fill="none" />
       {[0, 60, 120, 180, 240, 300].map((a) => (
         <rect key={a} x={cx - 3} y={cy - 29} width="6" height="22" rx="2" fill="#2b2d31" transform={`rotate(${a} ${cx} ${cy})`} />
       ))}

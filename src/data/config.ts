@@ -1,3 +1,4 @@
+import type { Notification, PaymentTerms, Role } from "../lib/types";
 // Business facts pulled from axisglasstinting.com. Prices are placeholders the owner edits in /admin.
 
 export const BUSINESS = {
@@ -179,7 +180,71 @@ export interface Settings {
   googleReviewUrl: string;
   leadWebhookUrl: string;
   adminPin: string;
+  /** Extra film added to every estimate for trimming, mistakes and recuts. */
+  filmWastePct: number;
+  theme: "dark" | "light";
+  ownerName: string;
+  /** Shown on proposals, invoices and documents. */
+  businessAddress: string;
+  /** Next human-facing numbers. */
+  sequences: { invoice: number; roll: number; proposal: number };
+  proposals: {
+    expiryDays: number;
+    depositPct: number;
+    depositOptions: number[];
+    /** Auto follow-ups: not viewed after 24h, viewed but not approved after 48h. */
+    followups: boolean;
+    requireName: boolean;
+    approvalMessage: string;
+    finePrint: string;
+  };
+  invoices: {
+    terms: PaymentTerms;
+    notes: string;
+    taxRates: TaxRate[];
+    defaultTaxRateId: string;
+    /** Stripe Payment Link (or any pay URL); shown as "Pay now" on invoices. */
+    payUrl: string;
+    showRollCodes: boolean;
+  };
+  templates: Record<TemplateKey, string>;
+  reminders: { confirm: boolean; day: boolean; hour: boolean; cancel: boolean };
+  calendar: { startHour: number; endHour: number; slotMin: number; defaultDurationMin: number; weekStart: 0 | 1 };
+  inventory: { largeLabels: boolean; forecastDays: number };
+  reviews: { sites: { name: string; url: string }[]; autoRequest: "installed" | "paid" | "off" };
+  /** Which roles get in-app notifications for each event. */
+  notify: Record<Notification["kind"], Role[]>;
 }
+
+export interface TaxRate { id: string; name: string; pct: number }
+
+export type TemplateKey =
+  | "confirm" | "remind24" | "remind1" | "cancel" | "vehicleReady" | "onMyWay"
+  | "proposalSend" | "proposalFollow24" | "proposalFollow48"
+  | "invoiceSend" | "invoiceDue" | "paymentThanks" | "review" | "docSign";
+
+/** Merge fields available in every template. */
+export const TEMPLATE_VARS = [
+  ":first_name", ":customer_name", ":business", ":phone", ":vehicle", ":event_date", ":event_time", ":event_datetime",
+  ":link", ":amount", ":code", ":approved_at",
+] as const;
+
+export const TEMPLATE_LABELS: Record<TemplateKey, string> = {
+  confirm: "Appointment confirmation",
+  remind24: "Reminder · 24 hours before",
+  remind1: "Reminder · 1 hour before",
+  cancel: "Appointment cancelled",
+  vehicleReady: "Vehicle ready",
+  onMyWay: "On my way",
+  proposalSend: "Send proposal",
+  proposalFollow24: "Proposal follow-up · not opened (24h)",
+  proposalFollow48: "Proposal follow-up · not approved (48h)",
+  invoiceSend: "Send invoice",
+  invoiceDue: "Invoice past due",
+  paymentThanks: "Payment received",
+  review: "Review request",
+  docSign: "Document to sign",
+};
 
 const p = (carbon: number | null, ceramic: number | null): PriceCell => ({ carbon, ceramic });
 
@@ -202,4 +267,72 @@ export const DEFAULT_SETTINGS: Settings = {
   googleReviewUrl: "",
   leadWebhookUrl: "",
   adminPin: "1234",
+  filmWastePct: 10,
+  theme: "dark",
+  ownerName: "Hank",
+  businessAddress: "Prescott, AZ",
+  sequences: { invoice: 1001, roll: 10001, proposal: 2001 },
+  proposals: {
+    expiryDays: 30,
+    depositPct: 25,
+    depositOptions: [0, 25, 50, 100],
+    followups: true,
+    requireName: true,
+    approvalMessage: "Thanks! You approved this on :approved_at. We'll text you shortly to lock in your install date.",
+    finePrint: "Prices include materials and labor. Lifetime warranty on film against peeling, bubbling and fading.",
+  },
+  invoices: {
+    terms: "receipt",
+    notes: "Thank you for choosing Axis Glass Tinting!",
+    taxRates: [{ id: "az", name: "Arizona TPT", pct: 0 }],
+    defaultTaxRateId: "az",
+    payUrl: "",
+    showRollCodes: true,
+  },
+  templates: {
+    confirm: "Hi :first_name, you're booked with :business for :event_datetime. Details: :link",
+    remind24: "Reminder: :business is scheduled for tomorrow, :event_datetime. Reply here if anything changes.",
+    remind1: "Heads up :first_name, we'll see you in about an hour (:event_time).",
+    cancel: "Hi :first_name, your :business appointment on :event_date has been cancelled. Reply to rebook.",
+    vehicleReady: "Hi :first_name, your :vehicle is ready! Keep the windows up 3–5 days while the film cures.",
+    onMyWay: "Hi :first_name, :business is on the way and should arrive around :event_time.",
+    proposalSend: "Hi :first_name, here's your :business proposal (:code). Pick your option and approve here: :link",
+    proposalFollow24: "Hi :first_name, just making sure you got your tint proposal from :business: :link",
+    proposalFollow48: "Hi :first_name, any questions on your proposal? Happy to help you pick. :link",
+    invoiceSend: "Hi :first_name, your :business invoice for :amount is ready: :link",
+    invoiceDue: "Hi :first_name, a friendly reminder from :business: your invoice for :amount is past due. You can pay here: :link",
+    paymentThanks: "Got it, thanks :first_name! We received :amount.",
+    review: "Thanks for choosing :business, :first_name! A quick review helps our small crew a ton: :link",
+    docSign: "Hi :first_name, please review and sign this before your appointment: :link",
+  },
+  reminders: { confirm: true, day: true, hour: true, cancel: true },
+  calendar: { startHour: 7, endHour: 18, slotMin: 30, defaultDurationMin: 120, weekStart: 0 },
+  inventory: { largeLabels: false, forecastDays: 14 },
+  reviews: { sites: [{ name: "Google", url: "" }, { name: "Facebook", url: "https://www.facebook.com/profile.php?id=61580062115375" }], autoRequest: "installed" },
+  notify: {
+    lead: ["owner", "admin"],
+    proposal: ["owner", "admin"],
+    payment: ["owner", "admin"],
+    document: ["owner", "admin"],
+    task: ["owner", "admin", "installer", "technician"],
+    stock: ["owner", "admin", "installer"],
+    appointment: ["owner", "admin", "installer", "technician"],
+    review: ["owner", "admin"],
+  },
+};
+
+/* ---------- Film stock ---------- */
+
+export const ROLL_WIDTHS = [20, 24, 30, 36, 40, 48, 60, 72];
+
+/** [width, height, qty] of a typical cut in inches, trim margin included. */
+export type Cut = [number, number, number];
+
+/** Typical cuts per window group. Used to estimate film pulled when a job is logged by car instead of measured. */
+export const CUTS: Record<BodyType, Record<Zone, Cut[]>> = {
+  sedan: { frontSides: [[40, 22, 2]], rearSides: [[34, 22, 2]], rearWindshield: [[58, 30, 1]], windshield: [[62, 36, 1]], visor: [[60, 7, 1]], sunroof: [[36, 20, 1]] },
+  coupe: { frontSides: [[46, 22, 2]], rearSides: [[20, 14, 2]], rearWindshield: [[54, 26, 1]], windshield: [[60, 34, 1]], visor: [[58, 7, 1]], sunroof: [[34, 18, 1]] },
+  suv: { frontSides: [[40, 24, 2]], rearSides: [[36, 24, 2], [24, 18, 2]], rearWindshield: [[48, 28, 1]], windshield: [[64, 38, 1]], visor: [[62, 7, 1]], sunroof: [[40, 30, 1]] },
+  truck: { frontSides: [[42, 24, 2]], rearSides: [[34, 22, 2]], rearWindshield: [[64, 22, 1]], windshield: [[64, 36, 1]], visor: [[62, 7, 1]], sunroof: [[34, 20, 1]] },
+  minivan: { frontSides: [[40, 24, 2]], rearSides: [[40, 24, 2], [34, 18, 2]], rearWindshield: [[52, 28, 1]], windshield: [[66, 40, 1]], visor: [[64, 7, 1]], sunroof: [[40, 30, 1]] },
 };

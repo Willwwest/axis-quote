@@ -1,30 +1,49 @@
 /** @type {import('tailwindcss').Config} */
+
+// Every color is a semantic token from src/styles/tokens.css, so a theme swap is a variable change.
+const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        axis: {
-          red: "#da281b",
-          bright: "#ff2a2a",
-          deep: "#b30000",
-          black: "#0b0b0c",
-          ink: "#121214",
-          panel: "#17171a",
-          line: "#2a2a2e",
-          mute: "#8a8a93",
+        bg: token("bg"),
+        sunken: token("sunken"),
+        surface: token("surface"),
+        raised: token("raised"),
+        fg: token("fg"),
+        "on-accent": token("on-accent"),
+        accent: {
+          DEFAULT: token("accent"),
+          bright: token("accent-bright"),
+          deep: token("accent-deep"),
+          fg: token("accent-fg"),
         },
+        success: token("success"),
+        warn: token("warn"),
+        info: token("info"),
+        danger: token("danger"),
+        scrim: token("scrim"),
       },
       fontFamily: {
-        display: ["Outfit", "system-ui", "sans-serif"],
-        body: ["DM Sans", "system-ui", "sans-serif"],
+        display: ["var(--font-display)"],
+        body: ["var(--font-body)"],
+      },
+      borderRadius: {
+        sm: "var(--radius-sm)",
+        md: "var(--radius-md)",
+        lg: "var(--radius-lg)",
+        xl: "var(--radius-lg)",
+        "2xl": "var(--radius-xl)",
       },
       keyframes: {
         marquee: { from: { transform: "translateX(0)" }, to: { transform: "translateX(-50%)" } },
       },
       animation: { marquee: "marquee 60s linear infinite" },
       boxShadow: {
-        glow: "0 0 0 1px rgba(218,40,27,.5), 0 10px 40px -10px rgba(218,40,27,.6)",
+        glow: "var(--shadow-glow)",
+        pop: "var(--shadow-pop)",
       },
     },
   },

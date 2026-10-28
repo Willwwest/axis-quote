@@ -40,7 +40,7 @@ export function WindowPicker({
       <path d="M 22 150 L 8 146 Q 4 154 8 160 L 22 158 Z M 198 150 L 212 146 Q 216 154 212 160 L 198 158 Z" fill="#2a2a30" />
       {/* Headlights / taillights */}
       <path d="M 36 40 Q 50 30 70 28 L 64 38 Q 48 42 40 50 Z M 184 40 Q 170 30 150 28 L 156 38 Q 172 42 180 50 Z" fill="#dfe8ff" opacity=".8" />
-      <path d="M 28 360 Q 40 376 70 380 L 70 372 Q 44 368 34 352 Z M 192 360 Q 180 376 150 380 L 150 372 Q 176 368 186 352 Z" fill="#ff2a2a" />
+      <path d="M 28 360 Q 40 376 70 380 L 70 372 Q 44 368 34 352 Z M 192 360 Q 180 376 150 380 L 150 372 Q 176 368 186 352 Z" fill="rgb(var(--c-accent-bright))" />
 
       {(Object.keys(SHAPES) as Zone[]).map((z) => {
         const on = zones.includes(z);
@@ -58,11 +58,11 @@ export function WindowPicker({
               <path
                 key={i}
                 d={d}
-                fill={on ? "#da281b" : "#3a3d46"}
+                fill={on ? "rgb(var(--c-accent))" : "#3a3d46"}
                 fillOpacity={on ? 0.95 : 0.7}
                 stroke={hover === z ? "#fff" : on ? "#ff5a4f" : "rgba(255,255,255,.25)"}
                 strokeWidth={hover === z ? 2 : 1}
-                style={{ transition: "all 200ms ease", filter: on ? "drop-shadow(0 0 6px rgba(255,42,42,.7))" : undefined }}
+                style={{ transition: "all 200ms ease", filter: on ? "drop-shadow(0 0 6px rgb(var(--c-accent-bright) / .7))" : undefined }}
               />
             ))}
           </g>

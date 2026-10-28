@@ -2,3 +2,6 @@ node_modules
 dist
 *.local
 *.tsbuildinfo
+
+# Competitor reference material (screenshots are theirs; keep local)
+docs/reference/

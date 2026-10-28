@@ -1,65 +1,168 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SETTINGS, type Settings } from "../data/config";
-import type { Lead } from "./types";
+import type {
+  Appointment, Contact, DocTemplate, FilmRoll, FilmType, FilmUse, Invoice, Lead, LeadStatus, MessageLog, Note,
+  Notification, Payment, Proposal, ProposalTemplate, Remnant, Review, SignedDoc, Staff,
+} from "./types";
 
-// Local persistence. Swap these four functions for Supabase calls to share data across devices.
+/*
+ * Persistence. Every record type is a `collection()` keyed in local storage. To share data across devices,
+ * replace `adapter` with one backed by a server (e.g. one Supabase table of {collection, id, data});
+ * nothing else in the app touches storage directly.
+ */
 
-const SETTINGS_KEY = "axis.settings.v1";
-const LEADS_KEY = "axis.leads.v1";
+interface Adapter {
+  read(key: string): unknown;
+  write(key: string, value: unknown): void;
+}
+
+const adapter: Adapter = {
+  read(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : undefined;
+    } catch {
+      return undefined;
+    }
+  },
+  write(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn("Could not save", key, e);
+      throw e;
+    }
+  },
+};
 
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
-const subscribe = (l: () => void) => {
+export const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
 
-function read<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function write(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.warn("Could not save", key, e);
-  }
-  cache.delete(key);
-  emit();
-}
-
 // useSyncExternalStore needs stable snapshots, so parsed values are cached until the next write.
 const cache = new Map<string, unknown>();
 function snapshot<T>(key: string, fallback: T): T {
-  if (!cache.has(key)) cache.set(key, read(key, fallback));
+  if (!cache.has(key)) cache.set(key, adapter.read(key) ?? fallback);
   return cache.get(key) as T;
 }
+function write(key: string, value: unknown) {
+  adapter.write(key, value);
+  cache.set(key, value);
+  emit();
+}
 
+// Another tab saved something: drop our copy so the next read sees it.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key?.startsWith("axis.")) {
+      cache.delete(e.key);
+      emit();
+    }
+  });
+}
+
+export interface Collection<T extends { id: string }> {
+  all(): T[];
+  get(id: string | undefined): T | undefined;
+  save(item: T): T;
+  saveMany(items: T[]): void;
+  update(id: string, patch: Partial<T> | ((t: T) => Partial<T>)): T | undefined;
+  remove(id: string): void;
+  use(): T[];
+  useOne(id: string | undefined): T | undefined;
+}
+
+function collection<T extends { id: string }>(key: string, migrate?: (t: T) => T): Collection<T> {
+  let migrated = !migrate;
+  const all = (): T[] => {
+    const list = snapshot<T[]>(key, []);
+    if (!migrated) {
+      migrated = true;
+      const next = list.map(migrate!);
+      if (next.some((t, i) => t !== list[i])) {
+        cache.set(key, next);
+        try { adapter.write(key, next); } catch { /* keep in memory */ }
+        return next;
+      }
+    }
+    return list;
+  };
+  const c: Collection<T> = {
+    all,
+    get: (id) => (id ? all().find((t) => t.id === id) : undefined),
+    save(item) {
+      const list = all();
+      write(key, list.some((t) => t.id === item.id) ? list.map((t) => (t.id === item.id ? item : t)) : [item, ...list]);
+      return item;
+    },
+    saveMany(items) {
+      const ids = new Set(items.map((i) => i.id));
+      write(key, [...items, ...all().filter((t) => !ids.has(t.id))]);
+    },
+    update(id, patch) {
+      const cur = c.get(id);
+      if (!cur) return undefined;
+      const next = { ...cur, ...(typeof patch === "function" ? patch(cur) : patch) };
+      c.save(next);
+      return next;
+    },
+    remove: (id) => write(key, all().filter((t) => t.id !== id)),
+    use: () => useSyncExternalStore(subscribe, all),
+    useOne: (id) => useSyncExternalStore(subscribe, () => c.get(id)),
+  };
+  return c;
+}
+
+/* ---------- Collections ---------- */
+
+const OLD_STATUS: Record<string, LeadStatus> = { contacted: "consult", completed: "installed" };
+
+export const leads = collection<Lead>("axis.leads.v1", (l) => (OLD_STATUS[l.status] ? { ...l, status: OLD_STATUS[l.status] } : l));
+export const contacts = collection<Contact>("axis.contacts.v1");
+export const staff = collection<Staff>("axis.staff.v1");
+export const appointments = collection<Appointment>("axis.appointments.v1");
+export const proposals = collection<Proposal>("axis.proposals.v1");
+export const proposalTemplates = collection<ProposalTemplate>("axis.proposalTemplates.v1");
+export const invoices = collection<Invoice>("axis.invoices.v1");
+export const payments = collection<Payment>("axis.payments.v1");
+export const notes = collection<Note>("axis.notes.v1");
+export const docTemplates = collection<DocTemplate>("axis.docTemplates.v1");
+export const signedDocs = collection<SignedDoc>("axis.signedDocs.v1");
+export const reviews = collection<Review>("axis.reviews.v1");
+export const messages = collection<MessageLog>("axis.messages.v1");
+export const notifications = collection<Notification>("axis.notifications.v1");
+export const filmTypes = collection<FilmType>("axis.filmTypes.v1");
+export const rolls = collection<FilmRoll>("axis.rolls.v1", (r) => (r.status ? r : { ...r, status: "in" }));
+export const filmLog = collection<FilmUse>("axis.filmlog.v1");
+export const remnants = collection<Remnant>("axis.remnants.v1");
+
+/* ---------- Settings ---------- */
+
+const SETTINGS_KEY = "axis.settings.v1";
+
+/** Saved settings over defaults, one level deep so new nested defaults appear for existing installs. */
 export function getSettings(): Settings {
   const saved = snapshot<Partial<Settings>>(SETTINGS_KEY, {});
-  return { ...DEFAULT_SETTINGS, ...saved };
+  const out = { ...DEFAULT_SETTINGS, ...saved } as Settings;
+  for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
+    const d = DEFAULT_SETTINGS[k];
+    if (d && typeof d === "object" && !Array.isArray(d) && saved[k] && typeof saved[k] === "object") {
+      (out as unknown as Record<string, unknown>)[k] = { ...d, ...(saved[k] as object) };
+    }
+  }
+  return out;
 }
 
 export function saveSettings(s: Settings) {
   write(SETTINGS_KEY, s);
 }
 
-export function getLeads(): Lead[] {
-  return snapshot<Lead[]>(LEADS_KEY, []);
-}
-
-export function saveLead(lead: Lead) {
-  const leads = getLeads().filter((l) => l.id !== lead.id);
-  write(LEADS_KEY, [lead, ...leads]);
-}
-
-export function deleteLead(id: string) {
-  write(LEADS_KEY, getLeads().filter((l) => l.id !== id));
+export function patchSettings(p: Partial<Settings> | ((s: Settings) => Partial<Settings>)) {
+  const s = getSettings();
+  saveSettings({ ...s, ...(typeof p === "function" ? p(s) : p) });
 }
 
 let settingsSnap: Settings | null = null;
@@ -75,18 +178,34 @@ export function useSettings(): Settings {
   });
 }
 
-export function useLeads(): Lead[] {
-  return useSyncExternalStore(subscribe, getLeads);
-}
+/* ---------- Back-compat helpers used across the app ---------- */
 
-/** Forwards a new lead to the owner's CRM / Zapier / Make hook, if one is configured. */
+export const getLeads = () => leads.all();
+export const useLeads = () => leads.use();
+export const saveLead = (lead: Lead) => leads.save(lead);
+export const deleteLead = (id: string) => leads.remove(id);
+
+export const getRolls = () => rolls.all();
+export const useRolls = () => rolls.use();
+export const saveRoll = (r: FilmRoll) => rolls.save(r);
+/** Removes the roll and its cut history. */
+export function deleteRoll(id: string) {
+  rolls.remove(id);
+  write("axis.filmlog.v1", filmLog.all().filter((u) => u.rollId !== id));
+}
+export const getFilmLog = () => filmLog.all();
+export const useFilmLog = () => filmLog.use();
+export const addFilmUse = (...uses: FilmUse[]) => filmLog.saveMany(uses);
+export const deleteFilmUse = (id: string) => filmLog.remove(id);
+
+/** Forwards an event to the owner's Zapier / Make / CRM hook, if one is configured. */
 export async function forwardLead(lead: Lead, url: string) {
   if (!url) return;
   try {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...lead, completion: undefined }),
+      body: JSON.stringify({ event: "lead.created", ...lead, completion: undefined }),
     });
   } catch (e) {
     console.warn("Lead webhook failed", e);
@@ -98,4 +217,19 @@ export function newId(prefix: string) {
   let s = "";
   for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return `${prefix}-${s}`;
+}
+
+/** Next number in a human-facing sequence (invoice 1001, roll 10001…), stored with settings. */
+export function nextNumber(seq: "invoice" | "roll" | "proposal"): string {
+  const s = getSettings();
+  const n = s.sequences[seq];
+  saveSettings({ ...s, sequences: { ...s.sequences, [seq]: n + 1 } });
+  return String(n);
+}
+
+/** Wipes every Axis key from this device. */
+export function resetAll() {
+  Object.keys(localStorage).filter((k) => k.startsWith("axis.")).forEach((k) => localStorage.removeItem(k));
+  cache.clear();
+  emit();
 }

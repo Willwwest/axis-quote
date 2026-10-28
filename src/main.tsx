@@ -1,21 +1,33 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "./styles.css";
 import QuotePage from "./pages/Quote";
-import AdminPage from "./pages/Admin";
-import JobCompletePage from "./pages/JobComplete";
-import WarrantyPage from "./pages/Warranty";
+
+// Customers only download the quote app; the crew dashboard and customer link pages load on demand.
+const AdminApp = lazy(() => import("./admin/AdminApp"));
+const WarrantyPage = lazy(() => import("./pages/Warranty"));
+const ProposalPage = lazy(() => import("./public/ProposalPage"));
+const InvoicePage = lazy(() => import("./public/InvoicePage"));
+const SignPage = lazy(() => import("./public/SignPage"));
+const AppointmentPage = lazy(() => import("./public/AppointmentPage"));
+const ReviewsPage = lazy(() => import("./public/ReviewsPage"));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <Routes>
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/job/:id" element={<JobCompletePage />} />
-        <Route path="/warranty" element={<WarrantyPage />} />
-        <Route path="*" element={<QuotePage />} />
-      </Routes>
+      <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/warranty" element={<WarrantyPage />} />
+          <Route path="/p/:id" element={<ProposalPage />} />
+          <Route path="/i/:id" element={<InvoicePage />} />
+          <Route path="/s/:id" element={<SignPage />} />
+          <Route path="/a/:id" element={<AppointmentPage />} />
+          <Route path="/reviews" element={<ReviewsPage />} />
+          <Route path="*" element={<QuotePage />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   </StrictMode>,
 );
