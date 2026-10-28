@@ -1,0 +1,19 @@
+/* Axis Glass Tinting brand tokens, pulled from axisglasstinting.com (Oct 2026) */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap");
+
+:root {
+  --axis-red: #da281b;          /* hsl(4 78% 48%), primary / CTA */
+  --axis-red-bright: #ff2a2a;   /* logo gradient top */
+  --axis-red-deep: #b30000;     /* logo gradient bottom */
+  --axis-red-tint: #fbeceb;     /* hsl(4 60% 95%), accent background */
+  --axis-black: #1a1a1a;        /* hsl(0 0% 10%), page background / theme-color */
+  --axis-ink: #141414;          /* hsl(0 0% 8%), text on light */
+  --axis-card: #f5f5f5;
+  --axis-muted: #666666;
+  --axis-border: #e0e0e0;
+  --axis-white: #ffffff;
+  --axis-radius: 0.5rem;
+
+  --font-display: "Outfit", system-ui, sans-serif;  /* headings */
+  --font-body: "DM Sans", system-ui, sans-serif;    /* body */
+}

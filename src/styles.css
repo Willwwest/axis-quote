@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --axis-red: #da281b;
+  --axis-black: #0b0b0c;
+}
+
+html,
+body {
+  background: var(--axis-black);
+  font-family: "DM Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(218, 40, 27, 0.5);
+}
+
+/* Hide number spinners in the pricing editor */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+@media print {
+  @page { margin: 12mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
