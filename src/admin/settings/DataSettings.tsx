@@ -6,15 +6,14 @@ import { paidOnLead } from "../../lib/money";
 import { jobKindLabel, jobPrice, jobTitle, statusMeta } from "../../lib/project";
 import { loadDemoData } from "../../lib/samples";
 import { personName } from "../../lib/session";
-import { leads, resetAll } from "../../lib/store";
+import { activeBusiness, businessKeys, leads, resetAll } from "../../lib/store";
 
-const axisKeys = () => Object.keys(localStorage).filter((k) => k.startsWith("axis."));
-
+// Backups use the "axis.*" names, so one business's backup can be restored into another.
 function backup() {
   const data: Record<string, unknown> = {};
-  for (const k of axisKeys()) {
+  for (const [k, name] of businessKeys()) {
     const raw = localStorage.getItem(k);
-    try { data[k] = raw == null ? null : JSON.parse(raw); } catch { data[k] = raw; }
+    try { data[name] = raw == null ? null : JSON.parse(raw); } catch { data[name] = raw; }
   }
   return JSON.stringify({ app: "axis", version: 1, exportedAt: new Date().toISOString(), data }, null, 2);
 }
@@ -32,7 +31,7 @@ function leadsCsv() {
 export function DataSettings() {
   const [msg, setMsg] = useState("");
   const [typed, setTyped] = useState("");
-  const used = axisKeys().reduce((s, k) => s + (localStorage.getItem(k)?.length ?? 0), 0);
+  const used = businessKeys().reduce((s, [k]) => s + (localStorage.getItem(k)?.length ?? 0), 0);
 
   const restore = async (f: File | undefined) => {
     if (!f) return;
@@ -42,8 +41,9 @@ export function DataSettings() {
       const keys = Object.keys(data ?? {}).filter((k) => k.startsWith("axis."));
       if (!keys.length) { setMsg("That file isn't an Axis backup."); return; }
       if (!confirm(`Replace everything on this device with the backup from ${parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleString() : "this file"} (${keys.length} sets of records)?`)) return;
-      axisKeys().forEach((k) => localStorage.removeItem(k));
-      keys.forEach((k) => localStorage.setItem(k, typeof data[k] === "string" ? (data[k] as string) : JSON.stringify(data[k])));
+      businessKeys().forEach(([k]) => localStorage.removeItem(k));
+      const into = activeBusiness().id === "main" ? "axis." : `axis~${activeBusiness().id}.`;
+      keys.forEach((k) => localStorage.setItem(into + k.slice(5), typeof data[k] === "string" ? (data[k] as string) : JSON.stringify(data[k])));
       location.reload();
     } catch {
       setMsg("Couldn't read that file. Pick a .json backup made here.");

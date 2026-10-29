@@ -1,11 +1,11 @@
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Eye, ExternalLink, Lock, LogOut, Menu, MoreHorizontal, Palette, X } from "lucide-react";
+import { Building2, Eye, ExternalLink, Lock, LogOut, Menu, MoreHorizontal, Palette, Plus, X } from "lucide-react";
 import { NotificationBell } from "../components/NotificationBell";
 import { Avatar, Button, Input, Logo, Select, cx } from "../components/ui";
 import { ROLES, setViewAs, signIn, signOut, useSession, type Perm } from "../lib/session";
-import { useSettings } from "../lib/store";
+import { activeBusiness, addBusiness, businesses, switchBusiness, useSettings } from "../lib/store";
 import type { Role } from "../lib/types";
 import { NAV } from "./nav";
 
@@ -223,6 +223,18 @@ function UserMenu() {
                   {ROLES.filter((r) => r.id !== "owner").map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </Select>
               </label>
+            )}
+            {user.role === "owner" && (
+              <div className="border-t border-fg/10 px-2 py-3">
+                <span className="mb-1 flex items-center gap-1.5 text-xs text-fg/50"><Building2 size={12} /> Business</span>
+                <Select value={activeBusiness().id} onChange={(e) => switchBusiness(e.target.value)} className="!py-2 text-sm" aria-label="Business">
+                  {businesses().map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </Select>
+                <button type="button" className="mt-2 flex items-center gap-1.5 text-xs text-fg/60 hover:text-fg"
+                  onClick={() => { const name = prompt("Name of the business to add"); if (name?.trim()) switchBusiness(addBusiness(name).id); }}>
+                  <Plus size={13} /> Add a business
+                </button>
+              </div>
             )}
             <button type="button" onClick={signOut} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-fg/70 hover:bg-fg/[.06] hover:text-fg"><LogOut size={15} /> Sign out</button>
           </div>

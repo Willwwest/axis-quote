@@ -11,6 +11,57 @@ import type {
  * nothing else in the app touches storage directly.
  */
 
+/*
+ * Businesses. One login can run several shops: each business keeps its own records and settings under its own key
+ * prefix ("axis." for the first, "axis~<id>." for the rest). Code always uses "axis.*" names; the adapter maps them.
+ */
+export interface Business { id: string; name: string }
+const BIZ_LIST = "axisBusinesses";
+const BIZ_ACTIVE = "axisBusiness";
+const MAIN = "main";
+
+export function businesses(): Business[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(BIZ_LIST) || "[]") as Business[];
+    return list.some((b) => b.id === MAIN) ? list : [{ id: MAIN, name: "Axis Glass Tinting" }, ...list];
+  } catch {
+    return [{ id: MAIN, name: "Axis Glass Tinting" }];
+  }
+}
+export function activeBusiness(): Business {
+  let id = MAIN;
+  try { id = localStorage.getItem(BIZ_ACTIVE) || MAIN; } catch { /* private mode */ }
+  return businesses().find((b) => b.id === id) ?? businesses()[0];
+}
+const prefix = () => (activeBusiness().id === MAIN ? "axis." : `axis~${activeBusiness().id}.`);
+const physical = (key: string) => (key.startsWith("axis.") ? prefix() + key.slice(5) : key);
+
+/** Storage keys that belong to the business in use, as [stored key, "axis.*" name]. */
+export function businessKeys(): [string, string][] {
+  const p = prefix();
+  try {
+    return Object.keys(localStorage).filter((k) => k.startsWith(p)).map((k) => [k, "axis." + k.slice(p.length)]);
+  } catch {
+    return [];
+  }
+}
+
+export function addBusiness(name: string): Business {
+  const biz = { id: `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "shop"}-${Date.now().toString(36)}`, name: name.trim() };
+  const list = businesses();
+  localStorage.setItem(BIZ_LIST, JSON.stringify([...list, biz]));
+  return biz;
+}
+export function renameBusiness(id: string, name: string) {
+  localStorage.setItem(BIZ_LIST, JSON.stringify(businesses().map((b) => (b.id === id ? { ...b, name: name.trim() } : b))));
+}
+/** Switches business, signs out (each business has its own PINs) and reloads into its dashboard. */
+export function switchBusiness(id: string) {
+  localStorage.setItem(BIZ_ACTIVE, id);
+  try { sessionStorage.removeItem("axis.session"); sessionStorage.removeItem("axis.viewAs"); } catch { /* ignore */ }
+  location.assign(`${import.meta.env.BASE_URL}admin`);
+}
+
 interface Adapter {
   read(key: string): unknown;
   write(key: string, value: unknown): void;
@@ -19,7 +70,7 @@ interface Adapter {
 const adapter: Adapter = {
   read(key) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(physical(key));
       return raw ? JSON.parse(raw) : undefined;
     } catch {
       return undefined;
@@ -27,7 +78,7 @@ const adapter: Adapter = {
   },
   write(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(physical(key), JSON.stringify(value));
     } catch (e) {
       console.warn("Could not save", key, e);
       throw e;
@@ -57,8 +108,8 @@ function write(key: string, value: unknown) {
 // Another tab saved something: drop our copy so the next read sees it.
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
-    if (e.key?.startsWith("axis.")) {
-      cache.delete(e.key);
+    if (e.key?.startsWith(prefix())) {
+      cache.delete("axis." + e.key.slice(prefix().length));
       emit();
     }
   });
@@ -228,9 +279,9 @@ export function nextNumber(seq: "invoice" | "roll" | "proposal"): string {
   return String(n);
 }
 
-/** Wipes every Axis key from this device. */
+/** Wipes every record of the business in use from this device. Other businesses are untouched. */
 export function resetAll() {
-  Object.keys(localStorage).filter((k) => k.startsWith("axis.")).forEach((k) => localStorage.removeItem(k));
+  businessKeys().forEach(([k]) => localStorage.removeItem(k));
   cache.clear();
   emit();
 }

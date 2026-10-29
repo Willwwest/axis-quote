@@ -8,7 +8,7 @@ Detailed notes and about 550 screenshots are in `docs/reference/tintwiz/`. That 
 
 - **Have:** built and working.
 - **Device-only:** works, but the data stays on one device, or customers' replies come back by text, until a server is connected (see the README).
-- **Skip:** deliberately not built.
+- **Needs server:** needs a backend and the owner's accounts (listed below).
 
 ## Where Axis now stands
 
@@ -38,8 +38,8 @@ Detailed notes and about 550 screenshots are in `docs/reference/tintwiz/`. That 
 | **Money** | Deposits after approval, manual payments, refunds, tips | Yes | Have |
 | | Invoices: lines, tax rates, terms, statuses, send, PDF, branding | Yes | Have |
 | | Online card payments (TintWizPay / Stripe) | Pay link (Stripe Payment Link); the customer enters the amount | Device-only |
-| | QuickBooks Online sync | CSV export in QuickBooks import format, not a live sync | Partial |
-| | Card terminals | No | Skip |
+| | QuickBooks Online sync | CSV export in QuickBooks import format; live sync needs an Intuit app and a server | Needs server |
+| | Card terminals | Needs Stripe Terminal and a server; payments taken on a terminal are recorded by hand | Needs server |
 | **Scheduling** | Calendar with team columns and filters; appointment fields, colors, recurring, check-in/out, cancel | Yes; route-days-by-region kept from Axis | Have |
 | | Map panel | "Open in Maps" per stop, plus a day route link | Have |
 | | Route planning *(Tint Wiz shows a map; it doesn't optimize)* | Routes: road drive times (OSRM), optimize the day across the whole crew, plan the week onto region route days, text each person a route link with turn-by-turn legs. Free and open source, no keys | **Ahead** |
@@ -51,8 +51,8 @@ Detailed notes and about 550 screenshots are in `docs/reference/tintwiz/`. That 
 | **Team** | Staff, roles, "View as", notifications per role | PIN per person; Owner / Admin / Installer / Technician; role matrix; targeted task alerts | Device-only |
 | | Notes → tasks, pending pool, replies with read receipts | Yes | Have |
 | | Dashboard KPIs, analytics with ~45 segments and period compare | 46 segments | Have |
-| | Multiple businesses under one login | No | Skip |
-| | Native iOS/Android apps | Mobile web app, phone tab bar | Partial |
+| | Multiple businesses under one login | Business switcher in the owner menu; each business has its own records, settings, PINs, backup and reset | Have |
+| | Native iOS/Android apps | Installable app (Add to Home Screen on iPhone, Install on Android): own icon, full screen, opens offline, shortcuts. Not listed in the app stores | Have (installable) |
 | | Zapier | Webhook for new leads and every notification | Partial |
 
 ## What still needs a server
@@ -63,4 +63,7 @@ These are the "Device-only" rows. All of them are unlocked by replacing the stor
 2. **Two-way customer pages.** Proposal approval, signatures, invoice views and appointment cancels would land straight in the dashboard.
 3. **Automatic sending.** Twilio/SendGrid would send the outbox on schedule instead of by tap.
 4. **Card payments** with exact amounts (Stripe Checkout with a server-created session).
-5. **Live QuickBooks sync.**
+5. **Live QuickBooks sync** (an Intuit developer app with OAuth).
+6. **Card terminals** (Stripe Terminal readers, or Tap to Pay).
+
+Each of these needs accounts the owner creates (for example Supabase, Twilio, Stripe, Intuit). The code is ready for them: storage goes through one adapter, and every send, payment and sync goes through one function.

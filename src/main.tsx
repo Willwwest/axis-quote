@@ -27,6 +27,11 @@ async function seedDemo() {
   }
 }
 
+// Installable app with offline start (public/sw.js). Production only, so dev keeps hot reload.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  addEventListener("load", () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {}));
+}
+
 seedDemo().finally(() =>
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
